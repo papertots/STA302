@@ -1,0 +1,12 @@
+---
+title: "NBA-Analysis"
+output: pdf_document
+date: "2025-05-15"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(readr)
+nba_final <- read_csv("nba_final.csv")
+```
+
