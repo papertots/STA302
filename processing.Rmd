@@ -1,12 +1,75 @@
 ---
-title: "NBA-Analysis"
+title: \vspace{-1cm} \begin{LARGE} NBA-Analysis \end{LARGE} \vspace{-0.75cm}
 output: pdf_document
 date: "2025-05-15"
+
 ---
 
-```{r setup, include=FALSE}
+```{r setup, include=FALSE, eval=TRUE}
 knitr::opts_chunk$set(echo = TRUE)
+if(!require("GGally")) install.packages("GGally")
 library(readr)
-nba_final <- read_csv("nba_final.csv")
+library(GGally)
+library(dplyr)
 ```
+
+## Cleaning data
+```{r, clean, include=FALSE}
+if (file.exists("nba_final_cleaned.csv")) {
+  nba_final <- read.csv("nba_final_cleaned.csv")
+} else {
+  nba_final <- read_csv("nba_final.csv")
+  nba_final <- nba_final |>
+    filter(Salary>1e5) |>
+    filter(Play == "No")
+  write.csv(nba_final, file = "nba_final_cleaned.csv")
+}
+```
+
+We're filtering out players that have played in All Star games, since their salary would also be affected by other factors, such as fame, that our analysis cannot accommodate. 
+
+Players whose salary was lower than \$100,000 are also filtered, since it includes a subset of players with missing salary information, and a group of players whose salary is a constant \$77,250, likely from a bad data source.
+
+## Variables
+
+We're analyzing the players' Salary (response variable) with these predictors:
+
+- Games played (G)
+- Points per game (PTS)
+- Personal Fouls per game (PF)
+- Assists per game (AST)
+and a categorical predictor, Role, with 2 levels (Front vs. Back).
+
+Below is a graph of the scatterplot matrix to show the linearity between the predictor variables.
+
+```{r, scatter_matrix}
+pairs(formula = ~ Salary + G + PTS + PF + AST, data=nba_final, pch=20)
+```
+\newpage
+
+## Fitting a linear model
+
+```{r, linear_model, echo=FALSE}
+# Transforming the data to fix heteroscedacity
+# nba_final <- nba_final |>
+#   mutate(Salary = log(Salary))
+nba_model <- lm(Salary ~ G + PTS + PF + AST + Role, data=nba_final)
+
+summary(nba_model)
+plot(nba_model, which=1)
+plot(nba_model, which=2)
+ggplot(nba_model) +
+  geom_point(aes(x = .fitted, y = Salary)) +
+  labs(x = "Fitted Values") +
+  labs(y = "Response \n(Salary)") +
+  geom_abline(color = "blue") +
+  labs(title = "Response vs. Fitted") +
+  theme(plot.title = element_text(hjust = 0.5))
+
+```
+\newpage
+
+## Preliminary Result
+
+The
 
