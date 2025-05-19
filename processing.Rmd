@@ -2,7 +2,6 @@
 title: \vspace{-3cm} \begin{LARGE} NBA-Analysis \end{LARGE} \vspace{-0.5cm}
 output: pdf_document
 date: "2025-05-15"
-
 ---
 
 ```{r setup, include=FALSE, eval=TRUE}
@@ -11,9 +10,11 @@ if(!require("GGally")) install.packages("GGally")
 library(readr)
 library(GGally)
 library(dplyr)
+library(patchwork)
 ```
 
 ## Cleaning data
+
 ```{r, clean, message=FALSE}
 if (file.exists("nba_final_cleaned.csv")) {
   nba_final <- read.csv("nba_final_cleaned.csv")
@@ -21,12 +22,12 @@ if (file.exists("nba_final_cleaned.csv")) {
   nba_final <- read_csv("nba_final.csv")
   nba_final <- nba_final |>
     filter(Salary>1e5) |>
-    filter(Play == "No")
+    filter(Play == "No") 
   write.csv(nba_final, file = "nba_final_cleaned.csv")
 }
 ```
 
-We're filtering out players that have played in All Star games, since their salary would also be affected by other factors, such as fame, that our analysis cannot accommodate. 
+We're filtering out players that have played in All Star games, since their salary would also be affected by other factors, such as fame, that our analysis cannot accommodate.
 
 Players whose salary was lower than \$100,000 are also filtered, since it includes a subset of players with missing salary information, and a group of players whose salary is a constant \$77,250, likely from a bad data source.
 
@@ -34,43 +35,53 @@ Players whose salary was lower than \$100,000 are also filtered, since it includ
 
 We're analyzing the players' Salary (response variable) with these predictors:
 
-- Games played (G)
-- Points per game (PTS)
-- Personal Fouls per game (PF)
-- Assists per game (AST)
-and a categorical predictor, Role, with 2 levels (Front vs. Back).
+-   Games played (G)
+-   Points per game (PTS)
+-   Personal Fouls per game (PF)
+-   Assists per game (AST) and a categorical predictor, Role, with 2 levels (Front vs. Back).
 
 Below is a graph of the scatterplot matrix to show the linearity between the predictor variables.
 
 ```{r, scatter_matrix}
 pairs(formula = ~ Salary + G + PTS + PF + AST, data=nba_final, pch=20)
 ```
+
 \newpage
 
 ## Fitting a linear model
 
 ```{r, linear_model, echo=FALSE}
+# nba_final <- nba_final |> 
+  # mutate(Salary = log(Salary))
 nba_model <- lm(Salary ~ G + PTS + PF + AST + Role, data=nba_final)
 
 summary(nba_model)
-plot(nba_model, which=1)
-plot(nba_model, which=2)
-ggplot(nba_model) +
+par(mfrow=c(1, 2))
+p1 <- plot(nba_model, which=1)
+p2 <- plot(nba_model, which=2)
+p3 <- ggplot(nba_model) +
   geom_point(aes(x = .fitted, y = Salary)) +
   labs(x = "Fitted Values") +
   labs(y = "Response \n(Salary)") +
   geom_abline(color = "blue") +
   labs(title = "Response vs. Fitted") +
   theme(plot.title = element_text(hjust = 0.5))
-ggplot(nba_model) +
+p4 <- ggplot(nba_model) +
   geom_histogram(aes(x = rstandard(nba_model)), bins = 20) +
   theme(plot.title = element_text(hjust = 0.5)) +
   labs(title = "Standarized Residuals Histogram") +
   labs(x = "Standardized Residuals") +
   labs(y = "Count")
+
+p3 + p4
 ```
+
 \newpage
 
 ## Preliminary Results
 
-We noticed a few signs that our model violates linear regression assumptions. The residual vs fitted graph shows that 
+We notice a few signs that our model violates linear regression assumptions. The residual vs fitted graph shows a pattern of heteroscedasticity, possibly because the variance of the error term is not constant. This makes sense in the context of our data, since players are guaranteed a minimum salary regardless of their performance, which shows up as the clustering of data points in the bottom left part of the graph. On the other hand, factors such as fame affect top range players more than lowered ranged players, and we don't have sufficient data to account for that in our model. Both of these factors contribute to the heteroscedasticity. One possible way we can try to eliminate this error is by applying a log transformation on our response variable in further analysis.
+
+We also notice that the expected value of the residuals is not 0 across the range, but our explanation above accounts for this, where the model underestimate player salary on the top and bottom range because of factors mentioned above.
+
+The normality of error assumption is also violated, as shown from the normal-QQ plot and standardized residuals histogram. As previously explained, the standardized residuals is right-skewed because of additional unaccounted factors that contribute only to the salary of highly-paid players. Otherwise, the residuals are approximately normal for the -2.5 to 1 standard deviation range.
