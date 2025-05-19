@@ -1,5 +1,5 @@
 ---
-title: \vspace{-1cm} \begin{LARGE} NBA-Analysis \end{LARGE} \vspace{-0.75cm}
+title: \vspace{-3cm} \begin{LARGE} NBA-Analysis \end{LARGE} \vspace{-0.5cm}
 output: pdf_document
 date: "2025-05-15"
 
@@ -14,7 +14,7 @@ library(dplyr)
 ```
 
 ## Cleaning data
-```{r, clean, include=FALSE}
+```{r, clean, message=FALSE}
 if (file.exists("nba_final_cleaned.csv")) {
   nba_final <- read.csv("nba_final_cleaned.csv")
 } else {
@@ -50,9 +50,6 @@ pairs(formula = ~ Salary + G + PTS + PF + AST, data=nba_final, pch=20)
 ## Fitting a linear model
 
 ```{r, linear_model, echo=FALSE}
-# Transforming the data to fix heteroscedacity
-# nba_final <- nba_final |>
-#   mutate(Salary = log(Salary))
 nba_model <- lm(Salary ~ G + PTS + PF + AST + Role, data=nba_final)
 
 summary(nba_model)
@@ -65,11 +62,15 @@ ggplot(nba_model) +
   geom_abline(color = "blue") +
   labs(title = "Response vs. Fitted") +
   theme(plot.title = element_text(hjust = 0.5))
-
+ggplot(nba_model) +
+  geom_histogram(aes(x = rstandard(nba_model)), bins = 20) +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  labs(title = "Standarized Residuals Histogram") +
+  labs(x = "Standardized Residuals") +
+  labs(y = "Count")
 ```
 \newpage
 
-## Preliminary Result
+## Preliminary Results
 
-The
-
+We noticed a few signs that our model violates linear regression assumptions. The residual vs fitted graph shows that 
