@@ -51,37 +51,48 @@ pairs(formula = ~ Salary + G + PTS + PF + AST, data=nba_final, pch=20)
 ## Fitting a linear model
 
 ```{r, linear_model, echo=FALSE}
-# nba_final <- nba_final |> 
-  # mutate(Salary = log(Salary))
 nba_model <- lm(Salary ~ G + PTS + PF + AST + Role, data=nba_final)
 
 summary(nba_model)
-par(mfrow=c(1, 2))
-p1 <- plot(nba_model, which=1)
-p2 <- plot(nba_model, which=2)
-p3 <- ggplot(nba_model) +
-  geom_point(aes(x = .fitted, y = Salary)) +
-  labs(x = "Fitted Values") +
-  labs(y = "Response \n(Salary)") +
-  geom_abline(color = "blue") +
-  labs(title = "Response vs. Fitted") +
-  theme(plot.title = element_text(hjust = 0.5))
-p4 <- ggplot(nba_model) +
-  geom_histogram(aes(x = rstandard(nba_model)), bins = 20) +
-  theme(plot.title = element_text(hjust = 0.5)) +
-  labs(title = "Standarized Residuals Histogram") +
-  labs(x = "Standardized Residuals") +
-  labs(y = "Count")
-
-p3 + p4
+graph_summaries <- function() {
+  par(mfrow=c(1, 2))
+  p1 <- plot(nba_model, which=1)
+  p2 <- plot(nba_model, which=2)
+  p3 <- ggplot(nba_model) +
+    geom_point(aes(x = .fitted, y = nba_final$Salary)) +
+    labs(x = "Fitted Values") +
+    labs(y = "Response \n(Salary)") +
+    geom_abline(color = "blue") +
+    labs(title = "Response vs. Fitted") +
+    theme(plot.title = element_text(hjust = 0.5))
+  p4 <- ggplot(nba_model) +
+    geom_histogram(aes(x = rstandard(nba_model)), bins = 20) +
+    theme(plot.title = element_text(hjust = 0.5)) +
+    labs(title = "Standarized Residuals Histogram") +
+    labs(x = "Standardized Residuals") +
+    labs(y = "Count")
+  p3 + p4
+}
+graph_summaries()
 ```
-
-\newpage
 
 ## Preliminary Results
 
-We notice a few signs that our model violates linear regression assumptions. The residual vs fitted graph shows a pattern of heteroscedasticity, possibly because the variance of the error term is not constant. This makes sense in the context of our data, since players are guaranteed a minimum salary regardless of their performance, which shows up as the clustering of data points in the bottom left part of the graph. On the other hand, factors such as fame affect top range players more than lowered ranged players, and we don't have sufficient data to account for that in our model. Both of these factors contribute to the heteroscedasticity. One possible way we can try to eliminate this error is by applying a log transformation on our response variable in further analysis.
+We notice a few signs that our model violates linear regression assumptions. The residual vs. fitted graph shows a pattern of heteroscedasticity, possibly because the variance of the error term is not constant. This makes sense in the context of our data, since players are guaranteed a minimum salary regardless of their performance, which shows up as the clustering of data points in the bottom left part of the graph. On the other hand, factors such as fame affect top range players more than lowered ranged players, and we don't have sufficient data to account for that in our model. 
 
-We also notice that the expected value of the residuals is not 0 across the range, but our explanation above accounts for this, where the model underestimate player salary on the top and bottom range because of factors mentioned above.
+We also notice that the expected value of the residuals is not 0 across the range. The model slightly underestimates player salary on the top and bottom range, and we explained above why this is the case. The same applies for the violation of *normality of error* assumption shown from the normal-QQ plot and standardized residuals histogram, where the data appears right-skewed. Otherwise, the standardized residuals is approximately normal from the -2.5 to 1 standard deviation range.
 
-The normality of error assumption is also violated, as shown from the normal-QQ plot and standardized residuals histogram. As previously explained, the standardized residuals is right-skewed because of additional unaccounted factors that contribute only to the salary of highly-paid players. Otherwise, the residuals are approximately normal for the -2.5 to 1 standard deviation range.
+For all the violations above, we have considered applying a log transform on our response variable, but that's beyond the scope of the first part of the project. 
+
+<!--
+\newpage
+
+## Additional (Irrelevant) Plots
+-->
+
+<!-- ```{r} -->
+<!-- nba_final <- nba_final |>  -->
+<!--   mutate(Salary = log(Salary)) -->
+<!-- nba_model <- lm(Salary ~ G + PTS + PF + AST + Role, data=nba_final) -->
+<!-- graph_summaries() -->
+<!-- ``` -->
