@@ -1,7 +1,9 @@
 ---
 title: \vspace{-3cm} \begin{LARGE} NBA-Analysis \end{LARGE} \vspace{-0.5cm}
-output: pdf_document
 date: "2025-05-15"
+output: 
+  pdf_document:
+    fig_caption: yes
 ---
 
 ```{r setup, include=FALSE, eval=TRUE}
@@ -15,53 +17,64 @@ library(patchwork)
 
 ## Cleaning data
 
-```{r, clean, message=FALSE}
+```{r clean, message=FALSE}
 if (file.exists("nba_final_cleaned.csv")) {
   nba_final <- read.csv("nba_final_cleaned.csv")
 } else {
   nba_final <- read_csv("nba_final.csv")
   nba_final <- nba_final |>
-    filter(Salary>1e5) |>
-    filter(Play == "No") 
+    filter(Salary>3e5)
   write.csv(nba_final, file = "nba_final_cleaned.csv")
 }
 ```
 
-We're filtering out players that have played in All Star games, since their salary would also be affected by other factors, such as fame, that our analysis cannot accommodate.
-
-Players whose salary was lower than \$100,000 are also filtered, since it includes a subset of players with missing salary information, and a group of players whose salary is a constant \$77,250, likely from a bad data source.
+We're filtering out players with missing salary information or wages close to minimum wage for an NBA player, since these are essentially fixed points not affected by any predictors.
 
 ## Variables
 
 We're analyzing the players' Salary (response variable) with these predictors:
 
--   Games played (G)
--   Points per game (PTS)
--   Personal Fouls per game (PF)
--   Assists per game (AST) and a categorical predictor, Role, with 2 levels (Front vs. Back).
+- Points per game (PTS)
+- Personal Fouls per game (PF)
+- Assists per game (AST) 
+- Steals per game (STL)
+- Main position (Pos1), a categorical predictor with 5 levels (SG, C, PF, PG, SF)
 
-Below is a graph of the scatterplot matrix to show the linearity between the predictor variables.
+Below is a graph of the scatter plot matrix to show the linearity between the predictor variables.
 
-```{r, scatter_matrix}
-pairs(formula = ~ Salary + G + PTS + PF + AST, data=nba_final, pch=20)
+```{r scatter_matrix}
+nba_final <- nba_final |> 
+  mutate(Salary = Salary / 1e6) # change unit to salary in millions
+pairs(formula = ~ Salary + PTS + PF + AST + STL, data=nba_final, pch=20)
 ```
 
 \newpage
 
 ## Fitting a linear model
 
-```{r, linear_model, echo=FALSE}
-nba_model <- lm(Salary ~ G + PTS + PF + AST + Role, data=nba_final)
+```{r diagnostic_1, echo=FALSE, fig.cap = "Diagnostic Plots"}
+nba_final <- nba_final |>
+  mutate(Pos1 = factor(Pos1)) |> # change the team name into categorical levels
+  mutate(Pos1 = relevel(Pos1, ref = "SG")) # use shooting guard as reference level
+nba_model <- lm(Salary ~ PTS + PF + AST + STL + Pos1, data=nba_final)
 
 summary(nba_model)
-graph_summaries <- function() {
+graph_summaries_1 <- function(){
   par(mfrow=c(1, 2))
   p1 <- plot(nba_model, which=1)
   p2 <- plot(nba_model, which=2)
+}
+graph_summaries_1()
+```
+
+\newpage
+
+```{r diagnostic_2, echo=FALSE, fig.cap = "Diagnostic Plots, continued", fig.height=4}
+graph_summaries_2 <- function(){
   p3 <- ggplot(nba_model) +
     geom_point(aes(x = .fitted, y = nba_final$Salary)) +
     labs(x = "Fitted Values") +
-    labs(y = "Response \n(Salary)") +
+    labs(y = "Response \n Salary") +
     geom_abline(color = "blue") +
     labs(title = "Response vs. Fitted") +
     theme(plot.title = element_text(hjust = 0.5))
@@ -73,26 +86,22 @@ graph_summaries <- function() {
     labs(y = "Count")
   p3 + p4
 }
-graph_summaries()
+graph_summaries_2()
 ```
 
 ## Preliminary Results
 
-We notice a few signs that our model violates linear regression assumptions. The residual vs. fitted graph shows a pattern of heteroscedasticity, possibly because the variance of the error term is not constant. This makes sense in the context of our data, since players are guaranteed a minimum salary regardless of their performance, which shows up as the clustering of data points in the bottom left part of the graph. On the other hand, factors such as fame affect top range players more than lowered ranged players, and we don't have sufficient data to account for that in our model. 
+### Residual Analysis
 
-We also notice that the expected value of the residuals is not 0 across the range. The model slightly underestimates player salary on the top and bottom range, and we explained above why this is the case. The same applies for the violation of *normality of error* assumption shown from the normal-QQ plot and standardized residuals histogram, where the data appears right-skewed. Otherwise, the standardized residuals is approximately normal from the -2.5 to 1 standard deviation range.
+We notice a few signs that our model violates linear regression assumptions. The residual vs. fitted graph (Figure 1, left) shows a pattern of heteroscedasticity. This makes sense in the context of our data, since players who perform poorly are still guaranteed a minimum salary.
+We also notice that the expected value of the residuals is not 0 across the range, which suggests that the residual and fitted values are still correlated in some way, and that our fitted model might not be a linear function of the predictors.
 
-For all the violations above, we have considered applying a log transform on our response variable, but that's beyond the scope of the first part of the project. 
+The model also violates the *normality of error* assumption, as shown from the normal-QQ plot (Figure 1, right) and standardized residuals histogram (Figure 2, right). The standardized residuals appear right-skewed, where they have much higher right tail values from the range of +1 standard deviation and above.
 
-<!--
-\newpage
+The scatter plot of response vs. fitted values (Figure 2, left) show that the response variable does not seem to be any recognizable function of the predictors. This combined with the apparent heteroscedastic pattern in Figure 1 (left) suggests that our model is mis-specified, likely due to inaccurate salary data or other extant factors that the dataset does not account for.
 
-## Additional (Irrelevant) Plots
--->
+### Model Discussion
 
-<!-- ```{r} -->
-<!-- nba_final <- nba_final |>  -->
-<!--   mutate(Salary = log(Salary)) -->
-<!-- nba_model <- lm(Salary ~ G + PTS + PF + AST + Role, data=nba_final) -->
-<!-- graph_summaries() -->
-<!-- ``` -->
+Because of the violations mentioned above, the interpretations we make are limited. With that in mind, we notice from the estimated model parameters that the predictor, assists (AST), contribute to the average salary by about \$1 million for each unit increase while holding all other predictors constant. Personal fouls (PF) has an opposite effect. 
+
+On the other hand, for categorical variables, we expect the average player salary to increase by about \$4 million if they change position from shooting guard (SG) to Centre (C), holding all else constant, or decrease by about \$2 million from SG to point guard (PG).
