@@ -1,34 +1,28 @@
 ---
-title: \vspace{-3cm} \begin{LARGE} NBA-Analysis \end{LARGE} \vspace{-0.5cm}
-date: "2025-05-15"
-output: 
-  pdf_document:
-    fig_caption: yes
+title: Multiple Linear Regression Analysis of NBA Player Salaries
+date: "`r Sys.Date()`"
+output:
+ bookdown::pdf_document2: default
 ---
 
-```{r setup, include=FALSE, eval=TRUE}
-knitr::opts_chunk$set(echo = TRUE)
+```{r setup, message=FALSE, results="hide", include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, eval = TRUE, results="hide", message=FALSE, cache=TRUE)
 if(!require("GGally")) install.packages("GGally")
-library(readr)
-library(GGally)
-library(dplyr)
-library(patchwork)
+# if(!require("magick")) install.packages("magick")
+library("forcats")
+library("bookdown")
+library("readr")
+library("dplyr")
+library("patchwork")
 ```
 
-## Cleaning data
+\newpage
 
-```{r clean, message=FALSE}
-if (file.exists("nba_final_cleaned.csv")) {
-  nba_final <- read.csv("nba_final_cleaned.csv")
-} else {
-  nba_final <- read_csv("nba_final.csv")
-  nba_final <- nba_final |>
-    filter(Salary>3e5)
-  write.csv(nba_final, file = "nba_final_cleaned.csv")
-}
-```
+# Contributions
 
-We're filtering out players with missing salary information or wages close to minimum wage for an NBA player, since these are essentially fixed points not affected by any predictors.
+# Introduction
+
+# Data Description
 
 ## Variables
 
@@ -40,12 +34,30 @@ We're analyzing the players' Salary (response variable) with these predictors:
 - Steals per game (STL)
 - Main position (Pos1), a categorical predictor with 5 levels (SG, C, PF, PG, SF)
 
-Below is a graph of the scatter plot matrix to show the linearity between the predictor variables.
+## Cleaning data
 
-```{r scatter_matrix}
+```{r clean}
+nba_final <- read.csv("data/nba_final.csv")
+nba_final <- nba_final |>
+  filter(Salary>3e5)
+write.csv(nba_final, file = "data/nba_final_cleaned.csv")
+```
+
+We're filtering out players with missing salary information or wages close to minimum wage for an NBA player, since these are essentially fixed points not affected by any predictors.
+
+```{r scatter-matrix, fig.cap="Scatterplot matrix of respoonse and continuous predictors."}
 nba_final <- nba_final |> 
   mutate(Salary = Salary / 1e6) # change unit to salary in millions
-pairs(formula = ~ Salary + PTS + PF + AST + STL, data=nba_final, pch=20)
+ggpairs(nba_final,
+        columns = c("PTS", "PF", "AST", "STL", "Salary"))
+```
+
+Final row of Figure \@ref(fig:scatter-matrix) shows that the response variable (Salary) is roughly linear in the other 4 predictor variables. This indicates that linear regression is suitable here. Figure \@ref(fig:box-plots) shows that the box plots of Salary against each dummy categorical variable (i.e. level) has different Q3 and IQR values, except for point forward (PF) and shooting guard (SG). This indicates that player position (Pos1) will be a good categorical predictor for Salary after we group PF and SG as one single level.
+
+```{r box-plots, fig.cap="Box Plots of Salary against categorical dummy variables."}
+ggplot(nba_final) +
+  geom_boxplot(aes(x = Salary, y = Pos1)) +
+  labs(x = "Salary (Millions)", y = "Player Position (Pos1)")
 ```
 
 \newpage
@@ -56,6 +68,7 @@ pairs(formula = ~ Salary + PTS + PF + AST + STL, data=nba_final, pch=20)
 nba_final <- nba_final |>
   mutate(Pos1 = factor(Pos1)) |> # change the team name into categorical levels
   mutate(Pos1 = relevel(Pos1, ref = "SG")) # use shooting guard as reference level
+
 nba_model <- lm(Salary ~ PTS + PF + AST + STL + Pos1, data=nba_final)
 
 summary(nba_model)
@@ -93,7 +106,7 @@ graph_summaries_2()
 
 ### Residual Analysis
 
-We notice a few signs that our model violates linear regression assumptions. The residual vs. fitted graph (Figure 1, left) shows a pattern of heteroscedasticity. This makes sense in the context of our data, since players who perform poorly are still guaranteed a minimum salary.
+We notice a few signs that our model violates linear regression assumptions. The residual vs. fitted graph (\@ref(fig:diagnostic_2) , left) shows a pattern of heteroscedasticity. This makes sense in the context of our data, since players who perform poorly are still guaranteed a minimum salary.
 We also notice that the expected value of the residuals is not 0 across the range, which suggests that the residual and fitted values are still correlated in some way, and that our fitted model might not be a linear function of the predictors.
 
 The model also violates the *normality of error* assumption, as shown from the normal-QQ plot (Figure 1, right) and standardized residuals histogram (Figure 2, right). The standardized residuals appear right-skewed, where they have much higher right tail values from the range of +1 standard deviation and above.
