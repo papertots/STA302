@@ -4,6 +4,7 @@ date: "`r Sys.Date()`"
 output:
  bookdown::pdf_document2:
    extra_dependencies: ["float"]
+
 ---
 
 ```{r setup, message=FALSE, results="hide", include=FALSE}
@@ -11,6 +12,7 @@ knitr::opts_chunk$set(echo = FALSE, eval = TRUE, results="hide", message=FALSE,
                       cache=TRUE, fig.pos = "H", out.extra = "")
 if(!require("GGally")) install.packages("GGally")
 if(!require("kableExtra")) install.packages("kableExtra")
+if(!require("cowplot")) install.packages("cowplot")
 library("knitr")
 # if(!require("magick")) install.packages("magick")
 library("forcats")
@@ -28,11 +30,11 @@ library("patchwork")
 
 A person’s earnings in professional sports include things beyond their raw performance. Because talent, popularity and team strategy meet in the NBA, player pay mainly depends on what they do on the court, how they promote themselves, the position they hold and the terms of their contracts. This project works to understand the connection between how good NBA players are and their salaries, using a statistical technique to point out the main factors behind any changes in player pay.
 
-While the common assumption is that performance drives earnings, professional sports in the modern day now operate at the intersection of entertainment and profit. That means, along with obvious stats like scoring, playmaking and defense, team role and how much a player is worth are also taken into account. As a result, our central research question arises from these ideas: "To what extent can NBA player salary be explained by on-court performance and position?"
+While the common assumption is that performance drives earnings, professional sports in the modern day now operate at the intersection of entertainment and profit. That means, along with obvious stats like scoring, playmaking and defense, team role and how much a player is worth are also taken into account. As a result, our central research question arises from these ideas: "To what extent can NBA player salary be explained by on-court performance and position? What is the relationship between salary, and on-court statistics?"
 
 Linear regression is an appropriate statistical tool for this analysis because we are interested in estimating the average change in salary associated with unit changes in predictor variables (points per game, assists). The method allows us to quantify the effect of each variable while holding others constant. Additionally, categorical predictors such as a player's main position can be incorporated, enabling the model to account for role-based differences in compensation.
 
-Learning the role these elements play in salary allow us to understand both player valuation and the patterns that shape the NBA labor market. Could it be, for instance, that certain positions on the court inherently compensated greater, regardless of how successful a player is? Does a player’s earnings better correlate with points or assists than with defensive stats? Such inquiries are important for teams sorting through their salary allocations, players negotiating salaries and those analyzing the fairness of pay scales.
+By interpreting the linear regression model parameters, it would allow us to understand both player valuation (in terms of their performance) and the patterns that shape the NBA labor market. Could it be, for instance, that certain positions on the court inherently compensated greater, regardless of how successful a player is? Does a player’s earnings better correlate with points or assists than with defensive stats? Such inquiries are important for teams sorting through their salary allocations, players negotiating salaries and those analyzing the fairness of pay scales.
 
 # Data Description
 
@@ -42,28 +44,79 @@ The dataset analyzed here was constructed by Davide Ratto, combining statistics 
 
 ## Variables
 
-We're analyzing the players' Salary (response variable) with these predictors:
+We're analyzing the response variable, players' Salary (Figure \@ref(fig:vars).A) with these predictors:
 
-- Points Per Game (PTS): Measures a player's scoring ability and offensive productivity.
-- Personal Fouls Per Game (PF): Reflective of a player’s defensive discipline and quality.
-- Assists Per Game (AST): Reflects offensive role and playmaking contributions.
-- Steals Per Game (STL): Indicator of defensive activity and quality.
+- Points Per Game (PTS): Measures a player's scoring ability and offensive productivity (Figure \@ref(fig:vars).B)
+- Personal Fouls Per Game (PF): Reflective of a player’s defensive discipline and quality (Figure \@ref(fig:vars).C)
+- Assists Per Game (AST): Reflects offensive role and playmaking contributions (Figure \@ref(fig:vars).D)
+- Steals Per Game (STL): Indicator of defensive activity and quality (Figure \@ref(fig:vars).E)
 - Main Position (Pos1: [PG, SG, SF, PF, C]): A categorical variable that reflects role on court, adding context to the above continuous predictors.
 
 ```{r clean}
 nba_final <- read.csv("data/nba_final.csv")
 nba_final <- nba_final |>
-  filter(Salary>3e5)
+  filter(Salary>3e5) |> 
+  mutate(Salary = Salary / 1e6) # change unit to salary in millions
 write.csv(nba_final, file = "data/nba_final_cleaned.csv")
 ```
 
-We have filtering out players with missing salary information or wages close to minimum wage for an NBA player, since these are essentially fixed points not affected by any predictors.
+```{r vars, fig.cap='Density jistograms of response variables and predictors'}
+n <- nrow(nba_final)
+nba.hist.Salary <- ggplot(nba_final) +
+  geom_histogram(aes(Salary, y = after_stat(density)), 
+                 bins = diff(range(nba_final$Salary) / (2 * IQR(nba_final$Salary) / n ^ (1/3)))
+                 |> round()) +
+  geom_density(aes(Salary)) +
+  labs(title = "Salary\nDensity Histogram") +
+  labs(x = "Salary\n(millions)") +
+  theme(plot.title = element_text(hjust = 0.5, size = 11))
+
+nba.hist.PTS <- ggplot(nba_final) +
+  geom_histogram(aes(PTS, y = after_stat(density)), 
+                 bins = diff(range(nba_final$PTS) / (2 * IQR(nba_final$PTS) / n ^ (1/3)))
+                 |> round()) +
+  geom_density(aes(PTS)) +
+  labs(title = "Points Per Game\nDensity Histogram") +
+  labs(x = "Points per game (PTS)") +
+  theme(plot.title = element_text(hjust = 0.5, size = 11))
+
+nba.hist.PF <- ggplot(nba_final) +
+  geom_histogram(aes(PF, y = after_stat(density)),
+                 bins = diff(range(nba_final$PF) / (2 * IQR(nba_final$PF) / n ^ (1/3)))
+                 |> round()) +
+  geom_density(aes(PF)) +
+  labs(title = "Personal Fouls per game\nDensity Histogram") +
+  labs(x = "Personal Fouls (PF)") +
+  theme(plot.title = element_text(hjust = 0.5, size = 11))
+
+nba.hist.AST <- ggplot(nba_final) +
+  geom_histogram(aes(AST, y = after_stat(density)),
+                 bins = diff(range(nba_final$AST) / (2 * IQR(nba_final$AST) / n ^ (1/3)))
+                 |> round()) +
+  geom_density(aes(AST)) +
+  labs(title = "Assists per game\nDensity Histogram") +
+  labs(x = "Assists (AST)") +
+  theme(plot.title = element_text(hjust = 0.5, size = 11))
+
+nba.hist.STL <- ggplot(nba_final) +
+  geom_histogram(aes(STL, y = after_stat(density)), 
+                 bins = diff(range(nba_final$STL) / (2 * IQR(nba_final$STL) / n ^ (1/3)))
+                 |> round()) +
+  geom_density(aes(STL)) +
+  labs(title = "Steals per game\nDensity Histogram") +
+  labs(x = "Steals per game (STL)") +
+  theme(plot.title = element_text(hjust = 0.5, size = 11))
+
+plot_grid(nba.hist.Salary, nba.hist.PTS, nba.hist.PF, nba.hist.AST, nba.hist.STL, labels = "AUTO")
+
+```
+
+We have filtered out players with missing salary information or wages close to minimum wage for an NBA player, since these are essentially fixed points not affected by any predictors. Salary unit is also re-scaled to be in millions.
 
 ## Variable Summaries
 
 ```{r scatter-matrix, fig.cap="Scatterplot matrix of respoonse and continuous predictors", fig.height=4}
 nba_final <- nba_final |>
-  mutate(Salary = Salary / 1e6) # change unit to salary in millions
 ggpairs(nba_final,
         columns = c("PTS", "PF", "AST", "STL", "Salary"))
 ```
@@ -76,6 +129,7 @@ ggplot(nba_final) +
 ```
 
 # Preliminary Results
+
 
 ## Residual Analysis
 
@@ -122,13 +176,13 @@ graph_summaries_2()
 
 We notice a few signs that our model violates linear regression assumptions. The residual vs. fitted graph (Figure \@ref(fig:diagnostic-1), left) has points with uneven spread, which indicates heteroscedasticity (i.e. non-constant variance of the error term in the model). From the same graph, since the expected value of the residuals is not 0 across the range, non-linearity of our model is also apparent, i.e. Equation \@ref(eq:fitted-model) does not hold.
 \begin{equation}
-\hat{E}\left[\textbf{Y} \vert \textbf{X}\right] = \widehat{Salary} = \hat{\beta_0} + \hat{\beta_1}PTS + \hat{\beta_2}\ PF + \hat{\beta_3}\ AST + \hat{\beta_4}\ STL + \hat{\beta_5}\ I(C)+ \hat{\beta_6}\ I(PG)+ \hat{\beta_7}\ I(SF)
+Salary = \beta_0 + \beta_1\ PTS + \beta_2\ PF + \beta_3\ AST + \beta_4\ STL + \beta_5\ I(C)+ \beta_6\ I(PG)+ \beta_7\ I(SF) + \varepsilon
 (\#eq:fitted-model)
 \end{equation}
 
 The model also violates the *normality of error* assumption. The normal-QQ plot (Figure \@ref(fig:diagnostic-1), right) contains points above the identity line from +1 standard deviation and above. The standardized residuals histogram (Figure \@ref(fig:diagnostic-2), right) also shows a long right-tail (right-skewed). This means our model tends to underestimate player salaries at higher salary ranges.
 
-The scatter plot of response vs. fitted values (Figure \@ref(fig:diagnostic-2), left) also suggest heteroscedastic residuals from the wide spread of points around the identity line.
+The scatter plot of response vs. fitted values (Figure \@ref(fig:diagnostic-2), left) also suggest that our model is not reliable for predicting salary in terms of the predictors we defined.
 
 ## Model Discussion
 
@@ -141,6 +195,8 @@ kable(est_table, format = "latex", booktabs = TRUE, escape = FALSE, caption = "P
   add_header_above(apd, escape = FALSE)
 ```
 
-Because of the violations mentioned above, the interpretations we can make are limited. With that in mind, we notice from the estimated model parameters (as seen in Table \@ref(tab:prelim-model)) that the predictor, assists (AST), contribute to the average salary by about \$1.1 million ($\hat{\beta{3}} \approx 1.09$) for each unit increase while holding all other predictors constant. Personal fouls (PF) has an opposite effect ($\hat{\beta{2}} \approx 0.90$).
+Because of the violations mentioned above, the interpretations we can make are limited. With that in mind, these estimates tell us that player performance is correlated with their salary, which is also affected by their on-court positions.
 
-For the categorical variables, we expect the average player salary to increase by about \$2.8 million ($\hat{\beta{5}} \approx 2.83$) if they change position from shooting guard or point forward (the reference level, SG+PF) to Centre (C), holding all other predictors constant. A similar analysis can be obtained for the other position dummy variables by reading their corresponding $\hat{\beta}\text{'s}$.
+In particular, we notice from the estimated model parameters (as seen in Table \@ref(tab:prelim-model)) that the predictor, assists (AST), contribute to the average salary by about \$1.1 million ($\hat{\beta_3} \approx 1.09$) for each unit increase while holding all other predictors constant. Personal fouls (PF) has an opposite effect ($\hat{\beta_2} \approx 0.90$).
+
+For the categorical variables, we expect the average player salary to increase by about \$2.8 million ($\hat{\beta_5} \approx 2.83$) if they change position from shooting guard or point forward (the reference level, SG+PF) to Centre (C), holding all other predictors constant.
