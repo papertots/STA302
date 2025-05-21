@@ -47,7 +47,7 @@ write.csv(nba_final, file = "data/nba_final_cleaned.csv")
 
 We're filtering out players with missing salary information or wages close to minimum wage for an NBA player, since these are essentially fixed points not affected by any predictors.
 
-```{r scatter-matrix, fig.cap="Scatterplot matrix of respoonse and continuous predictors."}
+```{r scatter-matrix, fig.cap="Scatterplot matrix of respoonse and continuous predictors"}
 nba_final <- nba_final |>
   mutate(Salary = Salary / 1e6) # change unit to salary in millions
 ggpairs(nba_final,
@@ -56,15 +56,18 @@ ggpairs(nba_final,
 
 Final row of Figure \@ref(fig:scatter-matrix) shows that the response variable (Salary) is roughly linear in the other 4 predictor variables. This indicates that linear regression is suitable here. Figure \@ref(fig:box-plots) shows that the box plots of Salary against each dummy categorical variable (i.e. level) has different Q2, Q3, and IQR values, except for point forward (PF) and shooting guard (SG). This indicates that player position (Pos1) will be a good categorical predictor for Salary after we group PF and SG as one single level.
 
-```{r box-plots, fig.cap="Box Plots of Salary against categorical dummy variables."}
+```{r box-plots, fig.cap="Box Plots of Salary against categorical dummy variables"}
 ggplot(nba_final) +
   geom_boxplot(aes(x = Salary, y = Pos1)) +
   labs(x = "Salary (Millions)", y = "Player Position (Pos1)")
 ```
 
-## Fitting a linear model
 
-```{r factor-collapse}
+# Preliminary Results
+
+## Residual Analysis
+
+```{r lin-model}
 nba_final <- nba_final |>
   # change the team name into categorical levels
   mutate(Pos1 = factor(Pos1)) |>
@@ -72,18 +75,10 @@ nba_final <- nba_final |>
   mutate(Pos1 = fct_collapse(Pos1, "SG+PF" = c("SG", "PF"))) |>
   # use shooting guard as reference level
   mutate(Pos1 = relevel(Pos1, ref = "SG+PF"))
-```
-
-```{r prelim-model, fig.cap = "Prelimiary estimation of model parameters.", results='markup'}
 nba_model <- lm(Salary ~ PTS + PF + AST + STL + Pos1, data=nba_final)
-
-apd <- sprintf("$\\\\hat{\\\\beta_%d}$", seq(from = 0, to = 7))
-est_table <- bind_rows(coef(nba_model))
-kable(est_table, format = "latex", booktabs = TRUE, escape = FALSE) |>
-  add_header_above(apd, escape = FALSE)
 ```
 
-```{r diagnostic_1, echo=FALSE, fig.cap = "Diagnostic Plots"}
+```{r diagnostic-1, fig.cap = "Diagnostic Plots"}
 summary(nba_model)
 graph_summaries_1 <- function(){
   par(mfrow=c(1, 2))
@@ -93,9 +88,7 @@ graph_summaries_1 <- function(){
 graph_summaries_1()
 ```
 
-\newpage
-
-```{r diagnostic_2, echo=FALSE, fig.cap = "Diagnostic Plots, continued", fig.height=4}
+```{r diagnostic-2, fig.cap = "Diagnostic Plots, continued"}
 graph_summaries_2 <- function(){
   p3 <- ggplot(nba_model) +
     geom_point(aes(x = .fitted, y = nba_final$Salary)) +
@@ -115,19 +108,27 @@ graph_summaries_2 <- function(){
 graph_summaries_2()
 ```
 
-## Preliminary Results
+We notice a few signs that our model violates linear regression assumptions. The residual vs. fitted graph (Figure \@ref(fig:diagnostic-1), left) has points with uneven spread, which indicates heteroscedasticity (i.e. non-constant variance of the error term in the model). From the same graph, since the expected value of the residuals is not 0 across the range, non-linearity of our model is also apparent, i.e. Equation \@ref(eq:fitted-model) does not hold.
+\begin{equation}
+\hat{E}\left[\textbf{Y} \vert \textbf{X}\right] = \widehat{Salary} = \hat{\beta_0} + \hat{\beta_1}PTS + \hat{\beta_2}\ PF + \hat{\beta_3}\ AST + \hat{\beta_4}\ STL + \hat{\beta_5}\ I(C)+ \hat{\beta_6}\ I(PG)+ \hat{\beta_7}\ I(SF)
+(\#eq:fitted-model)
+\end{equation}
 
-### Residual Analysis
+The model also violates the *normality of error* assumption. The normal-QQ plot (Figure \@ref(fig:diagnostic-1), right) contains points above the identity line from +1 standard deviation and above. The standardized residuals histogram (Figure \@ref(fig:diagnostic-2), right) also shows a long right-tail (right-skewed). This means our model tends to underestimate player salaries at higher salary ranges.
 
-We notice a few signs that our model violates linear regression assumptions. The residual vs. fitted graph (\@ref(fig:diagnostic_2) , left) shows a pattern of heteroscedasticity. This makes sense in the context of our data, since players who perform poorly are still guaranteed a minimum salary.
-We also notice that the expected value of the residuals is not 0 across the range, which suggests that the residual and fitted values are still correlated in some way, and that our fitted model might not be a linear function of the predictors.
+The scatter plot of response vs. fitted values (Figure \@ref(fig:diagnostic-2), left) also suggest heteroscedastic residuals from the wide spread of points around the identity line.
 
-The model also violates the *normality of error* assumption, as shown from the normal-QQ plot (Figure 1, right) and standardized residuals histogram (Figure 2, right). The standardized residuals appear right-skewed, where they have much higher right tail values from the range of +1 standard deviation and above.
+## Model Discussion
 
-The scatter plot of response vs. fitted values (Figure 2, left) show that the response variable does not seem to be any recognizable function of the predictors. This combined with the apparent heteroscedastic pattern in Figure 1 (left) suggests that our model is mis-specified, likely due to inaccurate salary data or other extant factors that the dataset does not account for.
+```{r prelim-model, fig.cap = "Prelimiary estimation of model parameters", results='markup'}
 
-### Model Discussion
+apd <- sprintf("$\\\\hat{\\\\beta_%d}$", seq(from = 0, to = 7))
+est_table <- bind_rows(coef(nba_model))
+kable(est_table, format = "latex", booktabs = TRUE, escape = FALSE, caption = "Prelimiary estimation of model parameters.") |>
+  kable_styling(latex_options = "hold_position") |>
+  add_header_above(apd, escape = FALSE)
+```
 
-Because of the violations mentioned above, the interpretations we make are limited. With that in mind, we notice from the estimated model parameters that the predictor, assists (AST), contribute to the average salary by about \$1 million for each unit increase while holding all other predictors constant. Personal fouls (PF) has an opposite effect. 
+Because of the violations mentioned above, the interpretations we can make are limited. With that in mind, we notice from the estimated model parameters (as seen in Table \@ref(tab:prelim-model)) that the predictor, assists (AST), contribute to the average salary by about \$1.1 million ($\hat{\beta{3}} \approx 1.09$) for each unit increase while holding all other predictors constant. Personal fouls (PF) has an opposite effect ($\hat{\beta{2}} \approx 0.90$).
 
-On the other hand, for categorical variables, we expect the average player salary to increase by about \$4 million if they change position from shooting guard (SG) to Centre (C), holding all else constant, or decrease by about \$2 million from SG to point guard (PG).
+For the categorical variables, we expect the average player salary to increase by about \$2.8 million ($\hat{\beta{5}} \approx 2.83$) if they change position from shooting guard or point forward (the reference level, SG+PF) to Centre (C), holding all other predictors constant. A similar analysis can be obtained for the other position dummy variables by reading their corresponding $\hat{\beta}\text{'s}$.
