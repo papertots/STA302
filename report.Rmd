@@ -26,17 +26,19 @@ library("patchwork")
 
 # Data Description
 
+## Data Source
+
+The dataset analyzed here was constructed by Davide Ratto, combining statistics from several public sources available through a project undertaken at a Milan-based university. Data from websites such as basketball-reference.com, hoopshype.com and a Kaggle repository contributed to this dataset. The objective of the initial study was to create forecasts for players’ selection to the All-Star Game using a combination of data on performance and popularity. Only the most recent season’s data was kept for each player to preserve a sample that operators of the datasets consider independent.
+
 ## Variables
 
 We're analyzing the players' Salary (response variable) with these predictors:
 
-- Points per game (PTS)
-- Personal Fouls per game (PF)
-- Assists per game (AST) 
-- Steals per game (STL)
-- Main position (Pos1), a categorical predictor with 5 levels (SG, C, PF, PG, SF)
-
-## Cleaning data
+- Points Per Game (PTS): Measures a player's scoring ability and offensive productivity.
+- Personal Fouls Per Game (PF): Reflective of a player’s defensive discipline and quality.
+- Assists Per Game (AST): Reflects offensive role and playmaking contributions.
+- Steals Per Game (STL): Indicator of defensive activity and quality.
+- Main Position (Pos1: [PG, SG, SF, PF, C]): A categorical variable that reflects role on court, adding context to the above continuous predictors.
 
 ```{r clean}
 nba_final <- read.csv("data/nba_final.csv")
@@ -45,7 +47,9 @@ nba_final <- nba_final |>
 write.csv(nba_final, file = "data/nba_final_cleaned.csv")
 ```
 
-We're filtering out players with missing salary information or wages close to minimum wage for an NBA player, since these are essentially fixed points not affected by any predictors.
+We have filtering out players with missing salary information or wages close to minimum wage for an NBA player, since these are essentially fixed points not affected by any predictors.
+
+## Variable Summaries
 
 ```{r scatter-matrix, fig.cap="Scatterplot matrix of respoonse and continuous predictors"}
 nba_final <- nba_final |>
@@ -61,7 +65,6 @@ ggplot(nba_final) +
   geom_boxplot(aes(x = Salary, y = Pos1)) +
   labs(x = "Salary (Millions)", y = "Player Position (Pos1)")
 ```
-
 
 # Preliminary Results
 
