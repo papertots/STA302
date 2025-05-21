@@ -8,6 +8,8 @@ output:
 ```{r setup, message=FALSE, results="hide", include=FALSE}
 knitr::opts_chunk$set(echo = FALSE, eval = TRUE, results="hide", message=FALSE, cache=TRUE)
 if(!require("GGally")) install.packages("GGally")
+if(!require("kableExtra")) install.packages("kableExtra")
+library("knitr")
 # if(!require("magick")) install.packages("magick")
 library("forcats")
 library("bookdown")
@@ -46,13 +48,13 @@ write.csv(nba_final, file = "data/nba_final_cleaned.csv")
 We're filtering out players with missing salary information or wages close to minimum wage for an NBA player, since these are essentially fixed points not affected by any predictors.
 
 ```{r scatter-matrix, fig.cap="Scatterplot matrix of respoonse and continuous predictors."}
-nba_final <- nba_final |> 
+nba_final <- nba_final |>
   mutate(Salary = Salary / 1e6) # change unit to salary in millions
 ggpairs(nba_final,
         columns = c("PTS", "PF", "AST", "STL", "Salary"))
 ```
 
-Final row of Figure \@ref(fig:scatter-matrix) shows that the response variable (Salary) is roughly linear in the other 4 predictor variables. This indicates that linear regression is suitable here. Figure \@ref(fig:box-plots) shows that the box plots of Salary against each dummy categorical variable (i.e. level) has different Q3 and IQR values, except for point forward (PF) and shooting guard (SG). This indicates that player position (Pos1) will be a good categorical predictor for Salary after we group PF and SG as one single level.
+Final row of Figure \@ref(fig:scatter-matrix) shows that the response variable (Salary) is roughly linear in the other 4 predictor variables. This indicates that linear regression is suitable here. Figure \@ref(fig:box-plots) shows that the box plots of Salary against each dummy categorical variable (i.e. level) has different Q2, Q3, and IQR values, except for point forward (PF) and shooting guard (SG). This indicates that player position (Pos1) will be a good categorical predictor for Salary after we group PF and SG as one single level.
 
 ```{r box-plots, fig.cap="Box Plots of Salary against categorical dummy variables."}
 ggplot(nba_final) +
@@ -60,17 +62,28 @@ ggplot(nba_final) +
   labs(x = "Salary (Millions)", y = "Player Position (Pos1)")
 ```
 
-\newpage
-
 ## Fitting a linear model
 
-```{r diagnostic_1, echo=FALSE, fig.cap = "Diagnostic Plots"}
+```{r factor-collapse}
 nba_final <- nba_final |>
-  mutate(Pos1 = factor(Pos1)) |> # change the team name into categorical levels
-  mutate(Pos1 = relevel(Pos1, ref = "SG")) # use shooting guard as reference level
+  # change the team name into categorical levels
+  mutate(Pos1 = factor(Pos1)) |>
+  # group SG and PF into a single level
+  mutate(Pos1 = fct_collapse(Pos1, "SG+PF" = c("SG", "PF"))) |>
+  # use shooting guard as reference level
+  mutate(Pos1 = relevel(Pos1, ref = "SG+PF"))
+```
 
+```{r prelim-model, fig.cap = "Prelimiary estimation of model parameters.", results='markup'}
 nba_model <- lm(Salary ~ PTS + PF + AST + STL + Pos1, data=nba_final)
 
+apd <- sprintf("$\\\\hat{\\\\beta_%d}$", seq(from = 0, to = 7))
+est_table <- bind_rows(coef(nba_model))
+kable(est_table, format = "latex", booktabs = TRUE, escape = FALSE) |>
+  add_header_above(apd, escape = FALSE)
+```
+
+```{r diagnostic_1, echo=FALSE, fig.cap = "Diagnostic Plots"}
 summary(nba_model)
 graph_summaries_1 <- function(){
   par(mfrow=c(1, 2))
