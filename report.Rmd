@@ -28,9 +28,13 @@ library("patchwork")
 
 # Introduction
 
-A person’s earnings in professional sports include things beyond their raw performance. Because talent, popularity and team strategy meet in the NBA, player pay mainly depends on what they do on the court, how they promote themselves, the position they hold and the terms of their contracts. This project works to understand the connection between how good NBA players are and their salaries, using a statistical technique to point out the main factors behind any changes in player pay.
+An athlete’s earnings in professional sports are influenced by factors beyond their raw performance.
+Physicality, popularity, and basketball IQ meet in the NBA. A player’s salary can vary based on what they do on the court, how they promote themselves, the position they play, and the terms of their contract.
+This project aims to understand the relationship between NBA player salaries and a player’s pure, on-court contributions, using statistical techniques to identify the main factors behind any changes in player pay.
 
-While the common assumption is that performance drives earnings, professional sports in the modern day now operate at the intersection of entertainment and profit. That means, along with obvious stats like scoring, playmaking and defense, team role and how much a player is worth are also taken into account. As a result, our central research question arises from these ideas: "To what extent can NBA player salary be explained by on-court performance and position? What is the relationship between salary, and on-court statistics?"
+While the common assumption is that performance drives earnings, modern professional sports organizations now operate at the intersection of entertainment and profit. 
+This means that, along with more obvious statistics like scoring, playmaking, and defense, team role, fame, and how much a player is worth are also taken into account. 
+As a result, our central research question arises as such: "To what extent can NBA player salary be explained by on-court performance and position? What is the relationship between salary, and statistics such as points per game, fouls per game, assists per game, steals per game, and position?"
 
 Linear regression is an appropriate statistical tool for this analysis because we are interested in estimating the average change in salary associated with unit changes in predictor variables (points per game, assists). The method allows us to quantify the effect of each variable while holding others constant. Additionally, categorical predictors such as a player's main position can be incorporated, enabling the model to account for role-based differences in compensation.
 
@@ -40,7 +44,9 @@ By interpreting the linear regression model parameters, it would allow us to und
 
 ## Data Source
 
-The dataset analyzed here was constructed by Davide Ratto, combining statistics from several public sources available through a project undertaken at a Milan-based university. Data from websites such as basketball-reference.com, hoopshype.com and a Kaggle repository contributed to this dataset. The objective of the initial study was to create forecasts for players’ selection to the All-Star Game using a combination of data on performance and popularity. Only the most recent season’s data was kept for each player to preserve a sample that operators of the datasets consider independent.
+The dataset analyzed here was constructed by Davide Ratto, combining statistics from several public sources available through a project undertaken at a Milan-based university. Data from websites such as basketball-reference.com, hoopshype.com, and a Kaggle repository were combined to build this dataset. The objective of the initial study was to create forecasts for player selection to the All-Star Game using a combination of data on performance and popularity. Only the most recent season’s data was kept for each player to preserve a sample that operators of the datasets consider independent.
+
+In the model, we use Salary (USD) as the response variable to investigate which aspects of player performance and role most correlate to NBA compensation. Salary is a continuous and non-negative variable.
 
 ## Variables
 
@@ -55,12 +61,12 @@ We're analyzing the response variable, players' Salary (Figure \@ref(fig:vars).A
 ```{r clean}
 nba_final <- read.csv("data/nba_final.csv")
 nba_final <- nba_final |>
-  filter(Salary>3e5) |> 
+  filter(Salary>0) |> 
   mutate(Salary = Salary / 1e6) # change unit to salary in millions
 write.csv(nba_final, file = "data/nba_final_cleaned.csv")
 ```
 
-```{r vars, fig.cap='Density jistograms of response variables and predictors'}
+```{r vars, fig.cap='Density histograms of response variables and predictors'}
 n <- nrow(nba_final)
 nba.hist.Salary <- ggplot(nba_final) +
   geom_histogram(aes(Salary, y = after_stat(density)), 
@@ -111,16 +117,21 @@ plot_grid(nba.hist.Salary, nba.hist.PTS, nba.hist.PF, nba.hist.AST, nba.hist.STL
 
 ```
 
-We have filtered out players with missing salary information or wages close to minimum wage for an NBA player, since these are essentially fixed points not affected by any predictors. Salary unit is also re-scaled to be in millions.
-
 ## Variable Summaries
 
 ```{r scatter-matrix, fig.cap="Scatterplot matrix of respoonse and continuous predictors", fig.height=4}
-nba_final <- nba_final |>
 ggpairs(nba_final,
         columns = c("PTS", "PF", "AST", "STL", "Salary"))
 ```
-Final row of Figure \@ref(fig:scatter-matrix) shows that the response variable (Salary) is roughly linear in the other 4 predictor variables. This indicates that linear regression is suitable here. Figure \@ref(fig:box-plots) shows that the box plots of Salary against each dummy categorical variable (i.e. level) has different Q2, Q3, and IQR values, except for point forward (PF) and shooting guard (SG). This indicates that player position (Pos1) will be a good categorical predictor for Salary after we group PF and SG as one single level.
+
+We have filtered out players with missing salary information. Salary unit is also re-scaled to be in millions.
+
+Final row of Figure \@ref(fig:scatter-matrix) shows that the response variable (Salary) is roughly linear in the other 4 predictor variables. Figure \@ref(fig:box-plots) box plots of Salary against each categorical indicators has different Q2, Q3, and IQR values, except for point forward (PF) and shooting guard (SG). We theorize that once we merge PF and SG into the same level, the model (Equation \@ref(eq:lm)) would be a good linear approximation.
+\begin{equation}
+Salary = \beta_0 + \beta_1\ PTS + \beta_2\ PF + \beta_3\ AST + \beta_4\ STL + \beta_5\ I(C)+ \beta_6\ I(PG)+ \beta_7\ I(SF) + \varepsilon
+(\#eq:lm)
+\end{equation}
+
 
 ```{r box-plots, fig.cap="Box Plots of Salary against categorical dummy variables", fig.height=3}
 ggplot(nba_final) +
@@ -129,7 +140,6 @@ ggplot(nba_final) +
 ```
 
 # Preliminary Results
-
 
 ## Residual Analysis
 
@@ -174,11 +184,7 @@ graph_summaries_2 <- function(){
 graph_summaries_2()
 ```
 
-We notice a few signs that our model violates linear regression assumptions. The residual vs. fitted graph (Figure \@ref(fig:diagnostic-1), left) has points with uneven spread, which indicates heteroscedasticity (i.e. non-constant variance of the error term in the model). From the same graph, since the expected value of the residuals is not 0 across the range, non-linearity of our model is also apparent, i.e. Equation \@ref(eq:fitted-model) does not hold.
-\begin{equation}
-Salary = \beta_0 + \beta_1\ PTS + \beta_2\ PF + \beta_3\ AST + \beta_4\ STL + \beta_5\ I(C)+ \beta_6\ I(PG)+ \beta_7\ I(SF) + \varepsilon
-(\#eq:fitted-model)
-\end{equation}
+We notice a few signs that our model violates linear regression assumptions. The residual vs. fitted graph (Figure \@ref(fig:diagnostic-1), left) has points with uneven spread, which indicates heteroscedasticity (i.e. non-constant variance of the error term in the model). From the same graph, since the expected value of the residuals is not 0 across the range, non-linearity of our model is also apparent, i.e. Equation \@ref(eq:lm) does not hold.
 
 The model also violates the *normality of error* assumption. The normal-QQ plot (Figure \@ref(fig:diagnostic-1), right) contains points above the identity line from +1 standard deviation and above. The standardized residuals histogram (Figure \@ref(fig:diagnostic-2), right) also shows a long right-tail (right-skewed). This means our model tends to underestimate player salaries at higher salary ranges.
 
@@ -195,8 +201,8 @@ kable(est_table, format = "latex", booktabs = TRUE, escape = FALSE, caption = "P
   add_header_above(apd, escape = FALSE)
 ```
 
-Because of the violations mentioned above, the interpretations we can make are limited. With that in mind, these estimates tell us that player performance is correlated with their salary, which is also affected by their on-court positions.
+Because of the violations mentioned above, the interpretations we can make are limited. With that in mind, these still estimates tell us that player performance is correlated with their salary, which is also affected by their on-court positions.
 
-In particular, we notice from the estimated model parameters (as seen in Table \@ref(tab:prelim-model)) that the predictor, assists (AST), contribute to the average salary by about \$1.1 million ($\hat{\beta_3} \approx 1.09$) for each unit increase while holding all other predictors constant. Personal fouls (PF) has an opposite effect ($\hat{\beta_2} \approx 0.90$).
+In particular, we notice from the estimated model parameters (as seen in Table \@ref(tab:prelim-model)) that the predictor, assists (AST), contribute to the average salary by about \$1.1 million ($\hat{\beta_3} \approx 1.09$) for each unit increase while holding all other predictors constant. Personal fouls (PF) has an opposite effect ($\hat{\beta_2} \approx -0.90$).
 
 For the categorical variables, we expect the average player salary to increase by about \$2.8 million ($\hat{\beta_5} \approx 2.83$) if they change position from shooting guard or point forward (the reference level, SG+PF) to Centre (C), holding all other predictors constant.
