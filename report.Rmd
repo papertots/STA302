@@ -26,6 +26,14 @@ library("patchwork")
 
 # Introduction
 
+A person’s earnings in professional sports include things beyond their raw performance. Because talent, popularity and team strategy meet in the NBA, player pay mainly depends on what they do on the court, how they promote themselves, the position they hold and the terms of their contracts. This project works to understand the connection between how good NBA players are and their salaries, using a statistical technique to point out the main factors behind any changes in player pay.
+
+While the common assumption is that performance drives earnings, professional sports in the modern day now operate at the intersection of entertainment and profit. That means, along with obvious stats like scoring, playmaking and defense, team role and how much a player is worth are also taken into account. As a result, our central research question arises from these ideas: "To what extent can NBA player salary be explained by on-court performance and position?"
+
+Linear regression is an appropriate statistical tool for this analysis because we are interested in estimating the average change in salary associated with unit changes in predictor variables (points per game, assists). The method allows us to quantify the effect of each variable while holding others constant. Additionally, categorical predictors such as a player's main position can be incorporated, enabling the model to account for role-based differences in compensation.
+
+Learning the role these elements play in salary allow us to understand both player valuation and the patterns that shape the NBA labor market. Could it be, for instance, that certain positions on the court inherently compensated greater, regardless of how successful a player is? Does a player’s earnings better correlate with points or assists than with defensive stats? Such inquiries are important for teams sorting through their salary allocations, players negotiating salaries and those analyzing the fairness of pay scales.
+
 # Data Description
 
 ## Data Source
