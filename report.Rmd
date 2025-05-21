@@ -2,11 +2,13 @@
 title: Multiple Linear Regression Analysis of NBA Player Salaries
 date: "`r Sys.Date()`"
 output:
- bookdown::pdf_document2: default
+ bookdown::pdf_document2:
+   extra_dependencies: ["float"]
 ---
 
 ```{r setup, message=FALSE, results="hide", include=FALSE}
-knitr::opts_chunk$set(echo = FALSE, eval = TRUE, results="hide", message=FALSE, cache=TRUE)
+knitr::opts_chunk$set(echo = FALSE, eval = TRUE, results="hide", message=FALSE,
+                      cache=TRUE, fig.pos = "H", out.extra = "")
 if(!require("GGally")) install.packages("GGally")
 if(!require("kableExtra")) install.packages("kableExtra")
 library("knitr")
@@ -51,16 +53,15 @@ We have filtering out players with missing salary information or wages close to 
 
 ## Variable Summaries
 
-```{r scatter-matrix, fig.cap="Scatterplot matrix of respoonse and continuous predictors"}
+```{r scatter-matrix, fig.cap="Scatterplot matrix of respoonse and continuous predictors", fig.height=4}
 nba_final <- nba_final |>
   mutate(Salary = Salary / 1e6) # change unit to salary in millions
 ggpairs(nba_final,
         columns = c("PTS", "PF", "AST", "STL", "Salary"))
 ```
-
 Final row of Figure \@ref(fig:scatter-matrix) shows that the response variable (Salary) is roughly linear in the other 4 predictor variables. This indicates that linear regression is suitable here. Figure \@ref(fig:box-plots) shows that the box plots of Salary against each dummy categorical variable (i.e. level) has different Q2, Q3, and IQR values, except for point forward (PF) and shooting guard (SG). This indicates that player position (Pos1) will be a good categorical predictor for Salary after we group PF and SG as one single level.
 
-```{r box-plots, fig.cap="Box Plots of Salary against categorical dummy variables"}
+```{r box-plots, fig.cap="Box Plots of Salary against categorical dummy variables", fig.height=3}
 ggplot(nba_final) +
   geom_boxplot(aes(x = Salary, y = Pos1)) +
   labs(x = "Salary (Millions)", y = "Player Position (Pos1)")
@@ -91,7 +92,7 @@ graph_summaries_1 <- function(){
 graph_summaries_1()
 ```
 
-```{r diagnostic-2, fig.cap = "Diagnostic Plots, continued"}
+```{r diagnostic-2, fig.cap = "Diagnostic Plots, continued", fig.height=4}
 graph_summaries_2 <- function(){
   p3 <- ggplot(nba_model) +
     geom_point(aes(x = .fitted, y = nba_final$Salary)) +
