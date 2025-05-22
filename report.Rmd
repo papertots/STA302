@@ -84,7 +84,7 @@ We're analyzing the response variable, players' Salary (Figure \@ref(fig:vars).A
 ```{r clean}
 nba_final <- read.csv("nba_final.csv")
 nba_final <- nba_final |>
-  filter(Salary>3e5) |>
+  filter(Salary>0) |>
   mutate(Salary = Salary / 1e6) # change unit to salary in millions
 write.csv(nba_final, file = "nba_final_cleaned.csv")
 ```
