@@ -4,7 +4,6 @@ date: "`r Sys.Date()`"
 output:
  bookdown::pdf_document2:
    extra_dependencies: ["float"]
-
 ---
 
 ```{r setup, message=FALSE, results="hide", include=FALSE}
@@ -26,6 +25,30 @@ library("patchwork")
 
 # Contributions
 
+Yizhe Zhao
+
+- Rmd code used to analyze data and generate the plots, as well as the formatting for outputting the final report pdf from Rmd
+- Preliminary model results section of the report
+
+Shi Wang
+
+- Formatting, rewriting, citations, and general proofreading of the report
+
+Valentyn Lytvyniuk
+
+- Proofreading, organizing in-person meeting, co-writing introduction and data description, collaborating on the data set and response/predictor variable selection
+
+Cyre Beroncal
+
+- Wrote initial drafts of introduction and data description sections, proposed research question
+- Collaborated in selecting and interpreting initial variables used in relation to regression outputs
+
+Jack Zhang
+
+- Assisted in selecting and evaluating potential datasets for analysis
+- Wrote the notes in the Group Teamwork Agreement Doc
+- Proofreading to ensure clarity and accuracy
+
 # Introduction
 
 An athlete’s earnings in professional sports are influenced by factors beyond their raw performance.
@@ -44,7 +67,7 @@ By interpreting the linear regression model parameters, it would allow us to und
 
 ## Data Source
 
-The dataset analyzed here was constructed by Davide Ratto, combining statistics from several public sources available through a project undertaken at a Milan-based university. Data from websites such as basketball-reference.com, hoopshype.com, and a Kaggle repository were combined to build this dataset. The objective of the initial study was to create forecasts for player selection to the All-Star Game using a combination of data on performance and popularity. Only the most recent season’s data was kept for each player to preserve a sample that operators of the datasets consider independent.
+The dataset analyzed here was constructed by Davide Ratto (Ratto, 2019), combining statistics from several public sources available through a project undertaken at a Milan-based university. Data from websites such as basketball-reference.com (Basketball Statistic, n.d.), hoopshype.com (HoopsHype, n.d.), and a Kaggle repository (Gift, 2017) were combined to build this dataset. The objective of the initial study was to create forecasts for player selection to the All-Star Game using a combination of data on performance and popularity. Only the most recent season’s data was kept for each player to preserve a sample that operators of the datasets consider independent.
 
 In the model, we use Salary (USD) as the response variable to investigate which aspects of player performance and role most correlate to NBA compensation. Salary is a continuous and non-negative variable.
 
@@ -59,11 +82,11 @@ We're analyzing the response variable, players' Salary (Figure \@ref(fig:vars).A
 - Main Position (Pos1: [PG, SG, SF, PF, C]): A categorical variable that reflects role on court, adding context to the above continuous predictors.
 
 ```{r clean}
-nba_final <- read.csv("data/nba_final.csv")
+nba_final <- read.csv("nba_final.csv")
 nba_final <- nba_final |>
-  filter(Salary>0) |> 
+  filter(Salary>0) |>
   mutate(Salary = Salary / 1e6) # change unit to salary in millions
-write.csv(nba_final, file = "data/nba_final_cleaned.csv")
+write.csv(nba_final, file = "nba_final_cleaned.csv")
 ```
 
 ```{r vars, fig.cap='Density histograms of response variables and predictors'}
@@ -74,7 +97,7 @@ nba.hist.Salary <- ggplot(nba_final) +
                  |> round()) +
   geom_density(aes(Salary)) +
   labs(title = "Salary\nDensity Histogram") +
-  labs(x = "Salary\n(millions)") +
+  labs(x = "Salary\n(USD Millions)") +
   theme(plot.title = element_text(hjust = 0.5, size = 11))
 
 nba.hist.PTS <- ggplot(nba_final) +
@@ -119,14 +142,14 @@ plot_grid(nba.hist.Salary, nba.hist.PTS, nba.hist.PF, nba.hist.AST, nba.hist.STL
 
 ## Variable Summaries
 
-```{r scatter-matrix, fig.cap="Scatterplot matrix of respoonse and continuous predictors", fig.height=4}
+```{r scatter-matrix, fig.cap="Scatterplot matrix of respoonse and continuous predictors", fig.height=3.5}
 ggpairs(nba_final,
         columns = c("PTS", "PF", "AST", "STL", "Salary"))
 ```
 
 We have filtered out players with missing salary information. Salary unit is also re-scaled to be in millions.
 
-Final row of Figure \@ref(fig:scatter-matrix) shows that the response variable (Salary) is roughly linear in the other 4 predictor variables. Figure \@ref(fig:box-plots) box plots of Salary against each categorical indicators has different Q2, Q3, and IQR values, except for point forward (PF) and shooting guard (SG). We theorize that once we merge PF and SG into the same level, the model (Equation \@ref(eq:lm)) would be a good linear approximation.
+Final row of Figure \@ref(fig:scatter-matrix) shows that the response variable (Salary) is roughly linear in the other 4 predictor variables. Figure \@ref(fig:box-plots) box plots of Salary against each categorical indicators has different Q2, Q3, and IQR values, except for power forward (PF) and shooting guard (SG). We theorize that once we merge PF and SG into the same level, the model (Equation \@ref(eq:lm)) would be a good linear approximation.
 \begin{equation}
 Salary = \beta_0 + \beta_1\ PTS + \beta_2\ PF + \beta_3\ AST + \beta_4\ STL + \beta_5\ I(C)+ \beta_6\ I(PG)+ \beta_7\ I(SF) + \varepsilon
 (\#eq:lm)
@@ -136,7 +159,7 @@ Salary = \beta_0 + \beta_1\ PTS + \beta_2\ PF + \beta_3\ AST + \beta_4\ STL + \b
 ```{r box-plots, fig.cap="Box Plots of Salary against categorical dummy variables", fig.height=3}
 ggplot(nba_final) +
   geom_boxplot(aes(x = Salary, y = Pos1)) +
-  labs(x = "Salary (Millions)", y = "Player Position (Pos1)")
+  labs(x = "Salary (USD Millions)", y = "Player Position (Pos1)")
 ```
 
 # Preliminary Results
@@ -184,7 +207,7 @@ graph_summaries_2 <- function(){
 graph_summaries_2()
 ```
 
-We notice a few signs that our model violates linear regression assumptions. The residual vs. fitted graph (Figure \@ref(fig:diagnostic-1), left) has points with uneven spread, which indicates heteroscedasticity (i.e. non-constant variance of the error term in the model). From the same graph, since the expected value of the residuals is not 0 across the range, non-linearity of our model is also apparent, i.e. Equation \@ref(eq:lm) does not hold.
+We notice a few signs that our model violates linear regression assumptions. The residual vs. fitted graph (Figure \@ref(fig:diagnostic-1), left) has a pattern, which indicates that the residuals (and therefore errors) are correlated. It also contains points with uneven spread, which indicates heteroscedasticity (i.e. non-constant variance of errors). From the same graph, since the expected value of the residuals is not 0 across the range, non-linearity of our model is also apparent, i.e. Equation \@ref(eq:lm) does not hold.
 
 The model also violates the *normality of error* assumption. The normal-QQ plot (Figure \@ref(fig:diagnostic-1), right) contains points above the identity line from +1 standard deviation and above. The standardized residuals histogram (Figure \@ref(fig:diagnostic-2), right) also shows a long right-tail (right-skewed). This means our model tends to underestimate player salaries at higher salary ranges.
 
@@ -205,4 +228,16 @@ Because of the violations mentioned above, the interpretations we can make are l
 
 In particular, we notice from the estimated model parameters (as seen in Table \@ref(tab:prelim-model)) that the predictor, assists (AST), contribute to the average salary by about \$1.1 million ($\hat{\beta_3} \approx 1.09$) for each unit increase while holding all other predictors constant. Personal fouls (PF) has an opposite effect ($\hat{\beta_2} \approx -0.90$).
 
-For the categorical variables, we expect the average player salary to increase by about \$2.8 million ($\hat{\beta_5} \approx 2.83$) if they change position from shooting guard or point forward (the reference level, SG+PF) to Centre (C), holding all other predictors constant.
+For the categorical variables, we expect the average player salary to increase by about \$2.8 million ($\hat{\beta_5} \approx 2.83$) if they change position from shooting guard or power forward (the reference level, SG+PF) to Centre (C), holding all other predictors constant.
+
+\newpage
+
+# Bibliography
+
+*Basketball Statistics & History of every Team & NBA and WNBA players*. Basketball-Reference. (n.d.). [https://www.basketball-reference.com/](https://www.basketball-reference.com/)
+
+Gift, N. (2017). *Social Power NBA*. Kaggle. [https://www.kaggle.com/datasets/noahgift/social-power-nba](https://www.kaggle.com/datasets/noahgift/social-power-nba)
+
+HoopsHype, & Choch, C. A. de. (n.d.). *Hoopshype*. HoopsHype. [https://hoopshype.com/](https://hoopshype.com/)
+
+Ratto, D., Galli, A., & Rubini, R. (2019). *NBA players 2016-2019* [Data set]. Kaggle. [https://www.kaggle.com/datasets/davra98/nba-players-20162019](https://www.kaggle.com/datasets/davra98/nba-players-20162019)
