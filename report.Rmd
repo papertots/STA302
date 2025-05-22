@@ -4,6 +4,10 @@ date: "`r Sys.Date()`"
 output:
  bookdown::pdf_document2:
    extra_dependencies: ["float"]
+bibliography: ["citations.bib"]
+biblio-style: "apa"
+csl: "apa-no-ampersand"
+link-citations: true
 ---
 
 ```{r setup, message=FALSE, results="hide", include=FALSE}
@@ -67,7 +71,7 @@ By interpreting the linear regression model parameters, it would allow us to und
 
 ## Data Source
 
-The dataset analyzed here was constructed by Davide Ratto (Ratto, 2019), combining statistics from several sources available through a Milan-based university project. Data from websites basketball-reference.com (Basketball Statistic, n.d.), hoopshype.com (HoopsHype, n.d.), and a Kaggle repository (Gift, 2017) were combined to build this dataset. The objective of the initial study was to create forecasts for player selection to the All-Star Game using a combination of data on performance and popularity. Only the most recent season’s data was kept for each player to preserve a sample that operators of the datasets consider independent.
+The dataset analyzed here was constructed by Davide Ratto [@ratto_nba_2019], combining statistics from several sources available through a Milan-based university project. Data from websites basketball-reference.com [@noauthor_basketball_nodate], hoopshype.com [@hoopshype_hoopshype_nodate], and a Kaggle repository [@gift_social_2017] were combined to build this dataset. The objective of the initial study was to create forecasts for player selection to the All-Star Game using a combination of data on performance and popularity. Only the most recent season’s data was kept for each player to preserve a sample that operators of the datasets consider independent.
 
 In the model, we use Salary (USD) as the response variable to investigate which aspects of player performance and role most correlate to NBA compensation.
 
@@ -233,11 +237,3 @@ For the categorical variables, we expect the average player salary to increase b
 \newpage
 
 # Bibliography
-
-*Basketball Statistics & History of every Team & NBA and WNBA players*. Basketball-Reference. (n.d.). [https://www.basketball-reference.com/](https://www.basketball-reference.com/)
-
-Gift, N. (2017). *Social Power NBA*. Kaggle. [https://www.kaggle.com/datasets/noahgift/social-power-nba](https://www.kaggle.com/datasets/noahgift/social-power-nba)
-
-HoopsHype, & Choch, C. A. de. (n.d.). *Hoopshype*. HoopsHype. [https://hoopshype.com/](https://hoopshype.com/)
-
-Ratto, D., Galli, A., & Rubini, R. (2019). *NBA players 2016-2019* [Data set]. Kaggle. [https://www.kaggle.com/datasets/davra98/nba-players-20162019](https://www.kaggle.com/datasets/davra98/nba-players-20162019)
