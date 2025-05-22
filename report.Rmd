@@ -67,9 +67,9 @@ By interpreting the linear regression model parameters, it would allow us to und
 
 ## Data Source
 
-The dataset analyzed here was constructed by Davide Ratto (Ratto, 2019), combining statistics from several public sources available through a project undertaken at a Milan-based university. Data from websites such as basketball-reference.com (Basketball Statistic, n.d.), hoopshype.com (HoopsHype, n.d.), and a Kaggle repository (Gift, 2017) were combined to build this dataset. The objective of the initial study was to create forecasts for player selection to the All-Star Game using a combination of data on performance and popularity. Only the most recent season’s data was kept for each player to preserve a sample that operators of the datasets consider independent.
+The dataset analyzed here was constructed by Davide Ratto (Ratto, 2019), combining statistics from several sources available through a Milan-based university project. Data from websites basketball-reference.com (Basketball Statistic, n.d.), hoopshype.com (HoopsHype, n.d.), and a Kaggle repository (Gift, 2017) were combined to build this dataset. The objective of the initial study was to create forecasts for player selection to the All-Star Game using a combination of data on performance and popularity. Only the most recent season’s data was kept for each player to preserve a sample that operators of the datasets consider independent.
 
-In the model, we use Salary (USD) as the response variable to investigate which aspects of player performance and role most correlate to NBA compensation. Salary is a continuous and non-negative variable.
+In the model, we use Salary (USD) as the response variable to investigate which aspects of player performance and role most correlate to NBA compensation.
 
 ## Variables
 
@@ -79,7 +79,7 @@ We're analyzing the response variable, players' Salary (Figure \@ref(fig:vars).A
 - Personal Fouls Per Game (PF): Reflective of a player’s defensive discipline and quality (Figure \@ref(fig:vars).C)
 - Assists Per Game (AST): Reflects offensive role and playmaking contributions (Figure \@ref(fig:vars).D)
 - Steals Per Game (STL): Indicator of defensive activity and quality (Figure \@ref(fig:vars).E)
-- Main Position (Pos1: [PG, SG, SF, PF, C]): A categorical variable that reflects role on court, adding context to the above continuous predictors.
+- Main Position (Pos1: [PG, SG, SF, PF, C]): A categorical variable that reflects role on court
 
 ```{r clean}
 nba_final <- read.csv("nba_final.csv")
@@ -149,7 +149,7 @@ ggpairs(nba_final,
 
 We have filtered out players with missing salary information. Salary unit is also re-scaled to be in millions.
 
-Final row of Figure \@ref(fig:scatter-matrix) shows that the response variable (Salary) is roughly linear in the other 4 predictor variables. Figure \@ref(fig:box-plots) box plots of Salary against each categorical indicators has different Q2, Q3, and IQR values, except for power forward (PF) and shooting guard (SG). We theorize that once we merge PF and SG into the same level, the model (Equation \@ref(eq:lm)) would be a good linear approximation.
+Final row of Figure \@ref(fig:scatter-matrix) shows that the response variable (Salary) is roughly linear in the 4 predictor variables. Figure \@ref(fig:box-plots) box plots of Salary against each categorical indicators has different Q2, Q3, and IQR values, except for power forward (PF) and shooting guard (SG). We theorize that once we merge PF and SG into the same level, the model (Equation \@ref(eq:lm)) would be a good linear approximation.
 \begin{equation}
 Salary = \beta_0 + \beta_1\ PTS + \beta_2\ PF + \beta_3\ AST + \beta_4\ STL + \beta_5\ I(C)+ \beta_6\ I(PG)+ \beta_7\ I(SF) + \varepsilon
 (\#eq:lm)
