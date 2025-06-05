@@ -16,6 +16,9 @@ knitr::opts_chunk$set(echo = FALSE, eval = TRUE, results="hide", message=FALSE,
 if(!require("GGally")) install.packages("GGally")
 if(!require("kableExtra")) install.packages("kableExtra")
 if(!require("cowplot")) install.packages("cowplot")
+library("GGally")
+library("kableExtra")
+library("cowplot")
 library("knitr")
 # if(!require("magick")) install.packages("magick")
 library("forcats")
@@ -86,54 +89,54 @@ We're analyzing the response variable, players' Salary (Figure \@ref(fig:vars).A
 - Main Position (Pos1: [PG, SG, SF, PF, C]): A categorical variable that reflects role on court
 
 ```{r clean}
-nba_final <- read.csv("nba_final.csv")
-nba_final <- nba_final |>
-  filter(Salary>0) |>
-  mutate(Salary = Salary / 1e6) # change unit to salary in millions
-write.csv(nba_final, file = "nba_final_cleaned.csv")
+nba <- read.csv("nba.csv")
+nba <- nba |>
+  filter(Salary>1e5) # |>
+  # mutate(Salary = Salary / 1e6) # change unit to salary in millions
+write.csv(nba, file = "nba_cleaned.csv")
 ```
 
 ```{r vars, fig.cap='Density histograms of response variables and predictors'}
-n <- nrow(nba_final)
-nba.hist.Salary <- ggplot(nba_final) +
+n <- nrow(nba)
+nba.hist.Salary <- ggplot(nba) +
   geom_histogram(aes(Salary, y = after_stat(density)), 
-                 bins = diff(range(nba_final$Salary) / (2 * IQR(nba_final$Salary) / n ^ (1/3)))
+                 bins = diff(range(nba$Salary) / (2 * IQR(nba$Salary) / n ^ (1/3)))
                  |> round()) +
   geom_density(aes(Salary)) +
   labs(title = "Salary\nDensity Histogram") +
   labs(x = "Salary\n(USD Millions)") +
   theme(plot.title = element_text(hjust = 0.5, size = 11))
 
-nba.hist.PTS <- ggplot(nba_final) +
+nba.hist.PTS <- ggplot(nba) +
   geom_histogram(aes(PTS, y = after_stat(density)), 
-                 bins = diff(range(nba_final$PTS) / (2 * IQR(nba_final$PTS) / n ^ (1/3)))
+                 bins = diff(range(nba$PTS) / (2 * IQR(nba$PTS) / n ^ (1/3)))
                  |> round()) +
   geom_density(aes(PTS)) +
   labs(title = "Points Per Game\nDensity Histogram") +
   labs(x = "Points per game (PTS)") +
   theme(plot.title = element_text(hjust = 0.5, size = 11))
 
-nba.hist.PF <- ggplot(nba_final) +
+nba.hist.PF <- ggplot(nba) +
   geom_histogram(aes(PF, y = after_stat(density)),
-                 bins = diff(range(nba_final$PF) / (2 * IQR(nba_final$PF) / n ^ (1/3)))
+                 bins = diff(range(nba$PF) / (2 * IQR(nba$PF) / n ^ (1/3)))
                  |> round()) +
   geom_density(aes(PF)) +
   labs(title = "Personal Fouls per game\nDensity Histogram") +
   labs(x = "Personal Fouls (PF)") +
   theme(plot.title = element_text(hjust = 0.5, size = 11))
 
-nba.hist.AST <- ggplot(nba_final) +
+nba.hist.AST <- ggplot(nba) +
   geom_histogram(aes(AST, y = after_stat(density)),
-                 bins = diff(range(nba_final$AST) / (2 * IQR(nba_final$AST) / n ^ (1/3)))
+                 bins = diff(range(nba$AST) / (2 * IQR(nba$AST) / n ^ (1/3)))
                  |> round()) +
   geom_density(aes(AST)) +
   labs(title = "Assists per game\nDensity Histogram") +
   labs(x = "Assists (AST)") +
   theme(plot.title = element_text(hjust = 0.5, size = 11))
 
-nba.hist.STL <- ggplot(nba_final) +
+nba.hist.STL <- ggplot(nba) +
   geom_histogram(aes(STL, y = after_stat(density)), 
-                 bins = diff(range(nba_final$STL) / (2 * IQR(nba_final$STL) / n ^ (1/3)))
+                 bins = diff(range(nba$STL) / (2 * IQR(nba$STL) / n ^ (1/3)))
                  |> round()) +
   geom_density(aes(STL)) +
   labs(title = "Steals per game\nDensity Histogram") +
@@ -147,7 +150,7 @@ plot_grid(nba.hist.Salary, nba.hist.PTS, nba.hist.PF, nba.hist.AST, nba.hist.STL
 ## Variable Summaries
 
 ```{r scatter-matrix, fig.cap="Scatterplot matrix of respoonse and continuous predictors", fig.height=3.5}
-ggpairs(nba_final,
+ggpairs(nba,
         columns = c("PTS", "PF", "AST", "STL", "Salary"))
 ```
 
@@ -161,7 +164,7 @@ Salary = \beta_0 + \beta_1\ PTS + \beta_2\ PF + \beta_3\ AST + \beta_4\ STL + \b
 
 
 ```{r box-plots, fig.cap="Box Plots of Salary against categorical dummy variables", fig.height=3}
-ggplot(nba_final) +
+ggplot(nba) +
   geom_boxplot(aes(x = Salary, y = Pos1)) +
   labs(x = "Salary (USD Millions)", y = "Player Position (Pos1)")
 ```
@@ -171,14 +174,14 @@ ggplot(nba_final) +
 ## Residual Analysis
 
 ```{r lin-model}
-nba_final <- nba_final |>
+nba <- nba |>
   # change the team name into categorical levels
-  mutate(Pos1 = factor(Pos1)) |>
+  mutate(Pos1 = factor(Pos1)) # |>
   # group SG and PF into a single level
-  mutate(Pos1 = fct_collapse(Pos1, "SG+PF" = c("SG", "PF"))) |>
+  # mutate(Pos1 = fct_collapse(Pos1, "SG+PF" = c("SG", "PF"))) |>
   # use shooting guard as reference level
-  mutate(Pos1 = relevel(Pos1, ref = "SG+PF"))
-nba_model <- lm(Salary ~ PTS + PF + AST + STL + Pos1, data=nba_final)
+  # mutate(Pos1 = relevel(Pos1, ref = "SG+PF"))
+nba_model <- lm(Salary ~ PTS + PF + AST + STL + Pos1, data=nba)
 ```
 
 ```{r diagnostic-1, fig.cap = "Diagnostic Plots"}
@@ -194,7 +197,7 @@ graph_summaries_1()
 ```{r diagnostic-2, fig.cap = "Diagnostic Plots, continued", fig.height=4}
 graph_summaries_2 <- function(){
   p3 <- ggplot(nba_model) +
-    geom_point(aes(x = .fitted, y = nba_final$Salary)) +
+    geom_point(aes(x = .fitted, y = nba$Salary)) +
     labs(x = "Fitted Values") +
     labs(y = "Response \n Salary") +
     geom_abline(color = "blue") +
