@@ -1,5 +1,6 @@
 ---
 title: Multiple Linear Regression Analysis of NBA Player Salaries
+author: "Yizhe Zhao, Valentyn Lytvyniuk, Cyre Beroncal, Shi Wang, and Jack Zhang"
 date: "`r Sys.Date()`"
 output:
  bookdown::pdf_document2:
@@ -16,16 +17,20 @@ knitr::opts_chunk$set(echo = FALSE, eval = TRUE, results="hide", message=FALSE,
 if(!require("GGally")) install.packages("GGally")
 if(!require("kableExtra")) install.packages("kableExtra")
 if(!require("cowplot")) install.packages("cowplot")
+if(!require("ggfortify")) install.packages("ggfortify")
 library("GGally")
+library("ggfortify")
 library("kableExtra")
 library("cowplot")
 library("knitr")
+library("MASS")
 # if(!require("magick")) install.packages("magick")
 library("forcats")
 library("bookdown")
 library("readr")
 library("dplyr")
 library("patchwork")
+ggplot2::theme_set(theme_minimal())
 ```
 
 \newpage
@@ -98,48 +103,47 @@ write.csv(nba, file = "nba_cleaned.csv")
 
 ```{r vars, fig.cap='Density histograms of response variables and predictors'}
 n <- nrow(nba)
+get_scott <- function(x) {
+  result <- pretty(range(x), n = nclass.scott(x), min.n = 1)
+  return(result)
+}
 nba.hist.Salary <- ggplot(nba) +
   geom_histogram(aes(Salary, y = after_stat(density)), 
-                 bins = diff(range(nba$Salary) / (2 * IQR(nba$Salary) / n ^ (1/3)))
-                 |> round()) +
+                 breaks = get_scott(nba$Salary)) +
   geom_density(aes(Salary)) +
-  labs(title = "Salary\nDensity Histogram") +
+  # labs(title = "Salary\nDensity Histogram") +
   labs(x = "Salary\n(USD Millions)") +
   theme(plot.title = element_text(hjust = 0.5, size = 11))
 
 nba.hist.PTS <- ggplot(nba) +
   geom_histogram(aes(PTS, y = after_stat(density)), 
-                 bins = diff(range(nba$PTS) / (2 * IQR(nba$PTS) / n ^ (1/3)))
-                 |> round()) +
+                 breaks = get_scott(nba$PTS)) +
   geom_density(aes(PTS)) +
-  labs(title = "Points Per Game\nDensity Histogram") +
+  # labs(title = "Points Per Game\nDensity Histogram") +
   labs(x = "Points per game (PTS)") +
   theme(plot.title = element_text(hjust = 0.5, size = 11))
 
 nba.hist.PF <- ggplot(nba) +
   geom_histogram(aes(PF, y = after_stat(density)),
-                 bins = diff(range(nba$PF) / (2 * IQR(nba$PF) / n ^ (1/3)))
-                 |> round()) +
+                 breaks = get_scott(nba$PF)) +
   geom_density(aes(PF)) +
-  labs(title = "Personal Fouls per game\nDensity Histogram") +
+  # labs(title = "Personal Fouls per game\nDensity Histogram") +
   labs(x = "Personal Fouls (PF)") +
   theme(plot.title = element_text(hjust = 0.5, size = 11))
 
 nba.hist.AST <- ggplot(nba) +
   geom_histogram(aes(AST, y = after_stat(density)),
-                 bins = diff(range(nba$AST) / (2 * IQR(nba$AST) / n ^ (1/3)))
-                 |> round()) +
+                 breaks = get_scott(nba$AST)) +
   geom_density(aes(AST)) +
-  labs(title = "Assists per game\nDensity Histogram") +
+  # labs(title = "Assists per game\nDensity Histogram") +
   labs(x = "Assists (AST)") +
   theme(plot.title = element_text(hjust = 0.5, size = 11))
 
 nba.hist.STL <- ggplot(nba) +
   geom_histogram(aes(STL, y = after_stat(density)), 
-                 bins = diff(range(nba$STL) / (2 * IQR(nba$STL) / n ^ (1/3)))
-                 |> round()) +
+                 breaks = get_scott(nba$STL)) +
   geom_density(aes(STL)) +
-  labs(title = "Steals per game\nDensity Histogram") +
+  # labs(title = "Steals per game\nDensity Histogram") +
   labs(x = "Steals per game (STL)") +
   theme(plot.title = element_text(hjust = 0.5, size = 11))
 
