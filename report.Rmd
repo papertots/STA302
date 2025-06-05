@@ -31,6 +31,7 @@ library("readr")
 library("dplyr")
 library("patchwork")
 ggplot2::theme_set(theme_minimal())
+ggplot2::theme_update(plot.title = element_text(hjust = 0.5, size = 11))
 ```
 
 \newpage
@@ -107,47 +108,43 @@ get_scott <- function(x) {
   result <- pretty(range(x), n = nclass.scott(x), min.n = 1)
   return(result)
 }
-nba.hist.Salary <- ggplot(nba) +
+nba.hist <- list() 
+nba.hist$Salary <- ggplot(nba) +
   geom_histogram(aes(Salary, y = after_stat(density)), 
                  breaks = get_scott(nba$Salary)) +
   geom_density(aes(Salary)) +
   # labs(title = "Salary\nDensity Histogram") +
-  labs(x = "Salary\n(USD Millions)") +
-  theme(plot.title = element_text(hjust = 0.5, size = 11))
+  labs(x = "Salary\n(USD Millions)")
 
-nba.hist.PTS <- ggplot(nba) +
+nba.hist$PTS <- ggplot(nba) +
   geom_histogram(aes(PTS, y = after_stat(density)), 
                  breaks = get_scott(nba$PTS)) +
   geom_density(aes(PTS)) +
   # labs(title = "Points Per Game\nDensity Histogram") +
-  labs(x = "Points per game (PTS)") +
-  theme(plot.title = element_text(hjust = 0.5, size = 11))
+  labs(x = "Points per game (PTS)")
 
-nba.hist.PF <- ggplot(nba) +
+nba.hist$PF <- ggplot(nba) +
   geom_histogram(aes(PF, y = after_stat(density)),
                  breaks = get_scott(nba$PF)) +
   geom_density(aes(PF)) +
   # labs(title = "Personal Fouls per game\nDensity Histogram") +
-  labs(x = "Personal Fouls (PF)") +
-  theme(plot.title = element_text(hjust = 0.5, size = 11))
+  labs(x = "Personal Fouls (PF)")
 
-nba.hist.AST <- ggplot(nba) +
+nba.hist$AST <- ggplot(nba) +
   geom_histogram(aes(AST, y = after_stat(density)),
                  breaks = get_scott(nba$AST)) +
   geom_density(aes(AST)) +
   # labs(title = "Assists per game\nDensity Histogram") +
-  labs(x = "Assists (AST)") +
-  theme(plot.title = element_text(hjust = 0.5, size = 11))
+  labs(x = "Assists (AST)")
 
-nba.hist.STL <- ggplot(nba) +
+nba.hist$STL <- ggplot(nba) +
   geom_histogram(aes(STL, y = after_stat(density)), 
                  breaks = get_scott(nba$STL)) +
   geom_density(aes(STL)) +
   # labs(title = "Steals per game\nDensity Histogram") +
-  labs(x = "Steals per game (STL)") +
-  theme(plot.title = element_text(hjust = 0.5, size = 11))
+  labs(x = "Steals per game (STL)")
 
-plot_grid(nba.hist.Salary, nba.hist.PTS, nba.hist.PF, nba.hist.AST, nba.hist.STL, labels = "AUTO")
+plot_grid(plotlist = nba.hist, labels = "AUTO")
 
 ```
 
@@ -188,14 +185,16 @@ nba <- nba |>
 nba_model <- lm(Salary ~ PTS + PF + AST + STL + Pos1, data=nba)
 ```
 
-```{r diagnostic-1, fig.cap = "Diagnostic Plots"}
+```{r diagnostic-1, fig.cap = "Diagnostic Plots", fig.height=3.5}
 summary(nba_model)
-graph_summaries_1 <- function(){
-  par(mfrow=c(1, 2))
-  p1 <- plot(nba_model, which=1)
-  p2 <- plot(nba_model, which=2)
-}
-graph_summaries_1()
+#graph_summaries_1 <- function(){
+#  par(mfrow=c(1, 2))
+#  p1 <- plot(nba_model, which=1)
+#  p2 <- plot(nba_model, which=2)
+#}
+#graph_summaries_1()
+autoplot(nba_model, which=c(1, 2)) +
+  theme(plot.title = element_text(hjust = 0.5, size = 12))
 ```
 
 ```{r diagnostic-2, fig.cap = "Diagnostic Plots, continued", fig.height=4}
