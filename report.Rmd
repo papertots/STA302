@@ -24,7 +24,6 @@ library("kableExtra")
 library("cowplot")
 library("knitr")
 library("MASS")
-# if(!require("magick")) install.packages("magick")
 library("forcats")
 library("bookdown")
 library("readr")
@@ -114,7 +113,7 @@ nba.hist$Salary <- ggplot(nba) +
                  breaks = get_scott(nba$Salary)) +
   geom_density(aes(Salary)) +
   # labs(title = "Salary\nDensity Histogram") +
-  labs(x = "Salary\n(USD Millions)")
+  labs(x = "Salary (USD)")
 
 nba.hist$PTS <- ggplot(nba) +
   geom_histogram(aes(PTS, y = after_stat(density)), 
@@ -155,7 +154,7 @@ ggpairs(nba,
         columns = c("PTS", "PF", "AST", "STL", "Salary"))
 ```
 
-We have filtered out players with missing salary information. Salary unit is also re-scaled to be in millions.
+We have filtered out players with missing salary information.
 
 Final row of Figure \@ref(fig:scatter-matrix) shows that the response variable (Salary) is roughly linear in the 4 predictor variables. Figure \@ref(fig:box-plots) box plots of Salary against each categorical indicators has different Q3 and IQR values, except for power forward (PF) and shooting guard (SG). We theorize that once we merge PF and SG into the same level, the model (Equation \@ref(eq:lm)) would be a good linear approximation.
 \begin{equation}
@@ -167,7 +166,7 @@ Salary = \beta_0 + \beta_1\ PTS + \beta_2\ PF + \beta_3\ AST + \beta_4\ STL + \b
 ```{r box-plots, fig.cap="Box Plots of Salary against categorical dummy variables", fig.height=3}
 ggplot(nba) +
   geom_boxplot(aes(x = Salary, y = Pos1)) +
-  labs(x = "Salary (USD Millions)", y = "Player Position (Pos1)")
+  labs(x = "Salary (USD)", y = "Player Position (Pos1)")
 ```
 
 # Preliminary Results
@@ -187,34 +186,31 @@ nba_model <- lm(Salary ~ PTS + PF + AST + STL + Pos1, data=nba)
 
 ```{r diagnostic-1, fig.cap = "Diagnostic Plots", fig.height=3.5}
 summary(nba_model)
-#graph_summaries_1 <- function(){
-#  par(mfrow=c(1, 2))
-#  p1 <- plot(nba_model, which=1)
-#  p2 <- plot(nba_model, which=2)
-#}
-#graph_summaries_1()
 autoplot(nba_model, which=c(1, 2)) +
   theme(plot.title = element_text(hjust = 0.5, size = 12))
 ```
 
 ```{r diagnostic-2, fig.cap = "Diagnostic Plots, continued", fig.height=4}
-graph_summaries_2 <- function(){
-  p3 <- ggplot(nba_model) +
-    geom_point(aes(x = .fitted, y = nba$Salary)) +
+graph_summaries_2 <- function(model){
+  p3 <- ggplot(model) +
+    geom_point(aes(x = .fitted, y = model$model[[model_response_variables(model)]])) +
     labs(x = "Fitted Values") +
-    labs(y = "Response \n Salary") +
-    geom_abline(color = "blue") +
-    labs(title = "Response vs. Fitted") +
-    theme(plot.title = element_text(hjust = 0.5))
-  p4 <- ggplot(nba_model) +
-    geom_histogram(aes(x = rstandard(nba_model)), bins = 20) +
+    labs(y = "Salary (USD)") +
+    geom_abline(color = "royalblue") +
+    labs(title = "Response vs. Fitted")
+  p4 <- ggplot(model) +
+    geom_histogram(aes(x = rstandard(model), y = after_stat(density)), 
+                   breaks = get_scott(rstandard(model))) +
+    geom_density(aes(x = rstandard(model)),
+                 colour = "royalblue") +
+    stat_function(fun = dnorm, linetype = "dotted") +
     theme(plot.title = element_text(hjust = 0.5)) +
     labs(title = "Standarized Residuals Histogram") +
     labs(x = "Standardized Residuals") +
-    labs(y = "Count")
+    labs(y = "Density")
   p3 + p4
 }
-graph_summaries_2()
+graph_summaries_2(nba_model)
 ```
 
 We notice a few signs that our model violates linear regression assumptions. The residual vs. fitted graph (Figure \@ref(fig:diagnostic-1), left) has a pattern, which indicates that the residuals (and therefore errors) are correlated. It also contains points with uneven spread, which indicates heteroscedasticity (i.e. non-constant variance of errors). From the same graph, since the expected value of the residuals is not 0 across the range, non-linearity of our model is also apparent, i.e. Equation \@ref(eq:lm) does not hold.
