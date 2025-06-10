@@ -18,6 +18,8 @@ if(!require("GGally")) install.packages("GGally")
 if(!require("kableExtra")) install.packages("kableExtra")
 if(!require("cowplot")) install.packages("cowplot")
 if(!require("ggfortify")) install.packages("ggfortify")
+if(!require("car")) install.packages("car")
+library("car")
 library("GGally")
 library("ggfortify")
 library("kableExtra")
@@ -34,32 +36,6 @@ ggplot2::theme_update(plot.title = element_text(hjust = 0.5, size = 11))
 ```
 
 \newpage
-
-# Contributions
-
-Yizhe Zhao
-
-- Rmd code used to analyze data and generate the plots, as well as the formatting for outputting the final report pdf from Rmd
-- Preliminary model results section of the report
-
-Shi Wang
-
-- Formatting, rewriting, citations, and general proofreading of the report
-
-Valentyn Lytvyniuk
-
-- Proofreading, organizing in-person meeting, co-writing introduction and data description, collaborating on the data set and response/predictor variable selection
-
-Cyre Beroncal
-
-- Wrote initial drafts of introduction and data description sections, proposed research question
-- Collaborated in selecting and interpreting initial variables used in relation to regression outputs
-
-Jack Zhang
-
-- Assisted in selecting and evaluating potential datasets for analysis
-- Wrote the notes in the Group Teamwork Agreement Doc
-- Proofreading to ensure clarity and accuracy
 
 # Introduction
 
@@ -237,5 +213,52 @@ In particular, we notice from the estimated model parameters (as seen in Table \
 For the categorical variables, we expect the average player salary to increase by about \$2.8 million ($\hat{\beta_5} \approx 2.83$) if they change position from shooting guard or power forward (the reference level, SG+PF) to Centre (C), holding all other predictors constant.
 
 \newpage
+
+# Model Selection
+
+## Transformations
+
+We chose the log-transform for the Salary response variable to fix the violation of non-constant variance assumption, 
+and a mix of log and square/cube root transformations for the predictor variables to fix violation of linearity assumption.
+
+The model **[TODO: INSERT MODEL HERE]** and its associated diagnostic plots are included below. While violations of non-constant variance and linearity, and normality of errors are still present in the plots, they are significantly improved compared to the original model, and are approximately satisfied to the degree to reasonably allow us to use partial F-tests to eliminate predictors, if we use a conservative $\alpha$ value.
+
+## Partial F-test
+
+We propose reduced model **[TODO: INESRT MODEL HERE]**, which removes the transformed STL and PF predictors, as well as collapsing SF and PF categorical levels into the same level. The choices in these predictors are inspired by a summary of the model from R, which we will omit here. A partial F-test with the above model as $H_0$, and the transformed full model above as $H_1$ gives us a p-value of 0.267, which is large enough to indicates that the reduced model should be used, even with linear regression assumptions only approximately satisfied. 
+
+## Problematic Observations
+
+
+# Final Model Inference and Results
+
+# Discussion and Conclusion
+
+# Author Contributions
+
+Yizhe Zhao
+
+- Rmd code used to analyze data and generate the plots, as well as the formatting for outputting the final report pdf from Rmd
+- Preliminary model results section of the report
+
+Shi Wang
+
+- Formatting, rewriting, citations, and general proofreading of the report
+
+Valentyn Lytvyniuk
+
+- Proofreading, organizing in-person meeting, co-writing introduction and data description, collaborating on the data set and response/predictor variable selection
+
+Cyre Beroncal
+
+- Wrote initial drafts of introduction and data description sections, proposed research question
+- Collaborated in selecting and interpreting initial variables used in relation to regression outputs
+
+Jack Zhang
+
+- Assisted in selecting and evaluating potential datasets for analysis
+- Wrote the notes in the Group Teamwork Agreement Doc
+- Proofreading to ensure clarity and accuracy
+
 
 # Bibliography
