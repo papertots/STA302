@@ -1,6 +1,6 @@
 # Data Source
 
-Data obtained from Kaggle repository [NBA PLAYERS 2016-2019](https://www.kaggle.com/datasets/davra98/nba-players-20162019), which is licensed under CC0: Public Domain.
+Data [nba.csv](nba.csv) obtained from Kaggle repository [NBA PLAYERS 2016-2019](https://www.kaggle.com/datasets/davra98/nba-players-20162019), which is licensed under CC0: Public Domain.
 
 # Attributions
 
