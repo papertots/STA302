@@ -132,9 +132,9 @@ ggpairs(nba,
 
 We have filtered out players with missing salary information.
 
-Final row of Figure \@ref(fig:scatter-matrix) shows that the response variable (Salary) is roughly linear in the 4 predictor variables. Figure \@ref(fig:box-plots) box plots of Salary against each categorical indicators has different Q3 and IQR values, except for power forward (PF) and shooting guard (SG). We theorize that once we merge PF and SG into the same level, the model (Equation \@ref(eq:lm)) would be a good linear approximation.
+Final row of Figure \@ref(fig:scatter-matrix) shows that the response variable (Salary) is roughly linear in the 4 continuous predictor variables. We theorize that the model, Equation \@ref(eq:lm), would be a good linear approximation.
 \begin{equation}
-Salary = \beta_0 + \beta_1\ PTS + \beta_2\ PF + \beta_3\ AST + \beta_4\ STL + \beta_5\ I(C)+ \beta_6\ I(PG)+ \beta_7\ I(SF) + \varepsilon
+Salary = \beta_0 + \beta_1\ PTS + \beta_2\ PF + \beta_3\ AST + \beta_4\ STL + \beta_5\ I(PF) + \beta_6\ I(PG) + \beta_7\ I(SF) + \beta_8\ I(SG) + \varepsilon
 (\#eq:lm)
 \end{equation}
 
@@ -152,18 +152,13 @@ ggplot(nba) +
 ```{r lin-model}
 nba <- nba |>
   # change the team name into categorical levels
-  mutate(Pos1 = factor(Pos1)) # |>
-  # group SG and PF into a single level
-  # mutate(Pos1 = fct_collapse(Pos1, "SG+PF" = c("SG", "PF"))) |>
-  # use shooting guard as reference level
-  # mutate(Pos1 = relevel(Pos1, ref = "SG+PF"))
+  mutate(Pos1 = factor(Pos1))
 nba_model <- lm(Salary ~ PTS + PF + AST + STL + Pos1, data=nba)
 ```
 
 ```{r diagnostic-1, fig.cap = "Diagnostic Plots", fig.height=3.5}
 summary(nba_model)
-autoplot(nba_model, which=c(1, 2)) +
-  theme(plot.title = element_text(hjust = 0.5, size = 12))
+autoplot(nba_model, which=c(1, 2))
 ```
 
 ```{r diagnostic-2, fig.cap = "Diagnostic Plots, continued", fig.height=4}
@@ -199,7 +194,7 @@ The scatter plot of response vs. fitted values (Figure \@ref(fig:diagnostic-2), 
 
 ```{r prelim-model, fig.cap = "Prelimiary estimation of model parameters", results='markup'}
 
-apd <- sprintf("$\\\\hat{\\\\beta_%d}$", seq(from = 0, to = 7))
+apd <- sprintf("$\\\\hat{\\\\beta_%d}$", seq(from = 0, to = 8))
 est_table <- bind_rows(coef(nba_model))
 kable(est_table, format = "latex", booktabs = TRUE, escape = FALSE, caption = "Prelimiary estimation of model parameters.") |>
   kable_styling(latex_options = "hold_position") |>
@@ -212,23 +207,53 @@ In particular, we notice from the estimated model parameters (as seen in Table \
 
 For the categorical variables, we expect the average player salary to increase by about \$2.8 million ($\hat{\beta_5} \approx 2.83$) if they change position from shooting guard or power forward (the reference level, SG+PF) to Centre (C), holding all other predictors constant.
 
-\newpage
-
 # Model Selection
 
 ## Transformations
 
-We chose the log-transform for the Salary response variable to fix the violation of non-constant variance assumption, 
-and a mix of log and square/cube root transformations for the predictor variables to fix violation of linearity assumption.
+```{r variable-transformation}
+nba <- nba |>
+  mutate(tSalary = log(Salary),
+         tPTS = sqrt(PTS),
+         tAST = log(AST + (quantile(AST, 0.25)/quantile(AST, 0.25))^2),
+         tSTL = log(STL + (quantile(STL, 0.25)/quantile(STL, 0.25))^2),
+         tPF = log(PF + (quantile(PF, 0.25)/quantile(PF, 0.25))^2),
+         Pos1 = relevel(Pos1, "SF"),
+         tPos1 = fct_collapse(Pos1, "SF+PF" = c("SF", "PF")),
+         tPos1 = relevel(tPos1, "SF+PF"))
+```
 
-The model **[TODO: INSERT MODEL HERE]** and its associated diagnostic plots are included below. While violations of non-constant variance and linearity, and normality of errors are still present in the plots, they are significantly improved compared to the original model, and are approximately satisfied to the degree to reasonably allow us to use partial F-tests to eliminate predictors, if we use a conservative $\alpha$ value.
+We chose the log-transform for the Salary response variable to fix the violation of non-constant variance assumption, 
+and a mix of log and square/cube root transformations for the predictor variables to fix violation of linearity assumption. For log-transform of predictor variables, a small constant (square of the first quartile divided by the third quartile of each predictor) is added to avoid taking the log of 0 [@muldoon_log_0_2018].
+
+Model \@ref(eq:transformed) (omitting the constant mentioned above for brevity) is specified as
+\begin{equation}
+\begin{split}
+log(Salary) = \beta_0 &+ \beta_1\ \sqrt{PTS} + \beta_2\ log(PFoul) + \beta_3\ log(AST) + \beta_4\ log(STL) \\
+&+ \beta_5\ I(PForward) + \beta_6\ I(PG) + \beta_7\ I(SF) + \beta_8\ I(SG) + \varepsilon
+(\#eq:transformed)
+\end{split}
+\end{equation}
+Its associated diagnostic plots are included below in Figure \@ref(fig:diagnostic-transformed). While violations of non-constant variance, linearity, and normality of errors are still present in the plots, they are significantly improved compared to the original model, and are approximately satisfied to the degree to reasonably allow us to use partial F-tests to eliminate predictors.
+
+```{r diagnostic-transformed, fig.cap = "Model with transformed response and predictors."}
+mod.transformed <- lm(tSalary ~ tPTS + tAST + tSTL + tPF + Pos1, data=nba)
+autoplot(mod.transformed, which = c(1, 2))
+```
 
 ## Partial F-test
 
-We propose reduced model **[TODO: INESRT MODEL HERE]**, which removes the transformed STL and PF predictors, as well as collapsing SF and PF categorical levels into the same level. The choices in these predictors are inspired by a summary of the model from R, which we will omit here. A partial F-test with the above model as $H_0$, and the transformed full model above as $H_1$ gives us a p-value of 0.267, which is large enough to indicates that the reduced model should be used, even with linear regression assumptions only approximately satisfied. 
+We propose reduced model
+\begin{equation}
+\begin{split}
+log(Salary) = \beta_0 &+ \beta_1\ \sqrt{PTS} + \beta_2\ log(AST) \\
+&+ \beta_3\ I(SF+PF) + \beta_4\ I(PG) + \beta_5\ I(SG) + \varepsilon
+(\#eq:reduced)
+\end{split}
+\end{equation}
+which removes the transformed STL and PF predictors, as well as collapsing SF and PF categorical levels into the same level. The choices in these predictors are inspired by the R summary output of the model (which we will omit here), where the p-value for the t-test for each individual predictor's coefficient are high. A partial F-test with model \@ref(eq:reduced) as $H_0$, and the transformed full model \@ref(eq:transformed) above as $H_1$ gives us a p-value of 0.267 **[INSERT ANOVA TABLE HERE]**, which is large enough to indicates that the reduced model should be used, even with linear regression assumptions only approximately satisfied.
 
 ## Problematic Observations
-
 
 # Final Model Inference and Results
 
