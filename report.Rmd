@@ -243,6 +243,11 @@ autoplot(mod.transformed, which = c(1, 2))
 
 ## Partial F-test
 
+```{r reduced-model}
+mod.reduced <- lm(tSalary ~ tPTS + tAST + tPos1, data=nba)
+anova(mod.reduced, mod.transformed)
+```
+
 We propose reduced model
 \begin{equation}
 \begin{split}
@@ -254,6 +259,28 @@ log(Salary) = \beta_0 &+ \beta_1\ \sqrt{PTS} + \beta_2\ log(AST) \\
 which removes the transformed STL and PF predictors, as well as collapsing SF and PF categorical levels into the same level. The choices in these predictors are inspired by the R summary output of the model (which we will omit here), where the p-value for the t-test for each individual predictor's coefficient are high. A partial F-test with model \@ref(eq:reduced) as $H_0$, and the transformed full model \@ref(eq:transformed) above as $H_1$ gives us a p-value of 0.267 **[INSERT ANOVA TABLE HERE]**, which is large enough to indicates that the reduced model should be used, even with linear regression assumptions only approximately satisfied.
 
 ## Problematic Observations
+
+```{r leverage, fig.cap="Plot of leverage values against index."}
+graph_obs <- function(model) {
+  p <- length(model$coefficients)
+  n <- nrow(model$model)
+  h_bar <- (p + 1) / n
+  df <- influence.measures(model)$infmat |> as.data.frame()
+  df <- df |>
+    mutate(index = as.numeric(row.names(df))) |>
+    mutate(sresid = rstandard(model))
+  p1 <- ggplot(df) +
+    geom_linerange(aes(x = index, ymin = 0, ymax = hat)) +
+    geom_hline(aes(yintercept= 2 * h_bar), colour = "blue") +
+    labs(title = "Leverage vs Index", x= "i", y = expression(h[ii]))
+  p2 <- ggplot(df) +
+    geom_point(aes(x = index, y = sresid)) +
+    labs(title = "Standardized Residuals vs Index", x = "i", y = expression(r[i]))
+  plot_grid(p1, p2, labels = "AUTO")
+}
+graph_obs(mod.reduced)
+```
+
 
 # Final Model Inference and Results
 
