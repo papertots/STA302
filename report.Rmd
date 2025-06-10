@@ -260,27 +260,65 @@ which removes the transformed STL and PF predictors, as well as collapsing SF an
 
 ## Problematic Observations
 
-```{r leverage, fig.cap="Plot of leverage values against index."}
-graph_obs <- function(model) {
-  p <- length(model$coefficients)
-  n <- nrow(model$model)
-  h_bar <- (p + 1) / n
-  df <- influence.measures(model)$infmat |> as.data.frame()
-  df <- df |>
-    mutate(index = as.numeric(row.names(df))) |>
-    mutate(sresid = rstandard(model))
+```{r leverage, fig.cap="Plot of leverage and standardized residuals against index."}
+get_infl_measures <- function(model) {
+  p <<- length(model$coefficients)
+  n <<- nrow(model$model)
+  result.df <- influence.measures(model)$infmat |> as.data.frame()
+  result.df <- result.df |>
+    mutate(index = as.numeric(row.names(result.df)),
+           sresid = rstandard(model))
+  return(result.df)
+}
+graph_obs <- function(df) {
   p1 <- ggplot(df) +
     geom_linerange(aes(x = index, ymin = 0, ymax = hat)) +
-    geom_hline(aes(yintercept= 2 * h_bar), colour = "blue") +
+    geom_hline(aes(yintercept= 2 * (p + 1) / n), colour = "royalblue", linetype = "dashed") +
     labs(title = "Leverage vs Index", x= "i", y = expression(h[ii]))
   p2 <- ggplot(df) +
     geom_point(aes(x = index, y = sresid)) +
     labs(title = "Standardized Residuals vs Index", x = "i", y = expression(r[i]))
   plot_grid(p1, p2, labels = "AUTO")
 }
-graph_obs(mod.reduced)
+mod.inflences <- get_infl_measures(mod.reduced)
+graph_obs(mod.inflences)
 ```
 
+Figure \@ref(fig:leverage).B does not show any $|r_i| > 4$ ($n=$ `r toString(n)` large enough to use 4 as cutoff), so we don't have any outliers in our current model.
+
+From Figure \@ref(fig:leverage).A, there are leverage points in the dataset, where the blue line is the $h = \frac{2(p+1)}{n}$ cutoff. Since we do not have any outliers, all leverage points are good leverage points, so we will check influential measures using Cook's distance and DFFITS next.
+
+```{r influential, fig.cap="Cook's distance against index."}
+graph_inf <- function(df) {
+  cook_cutoff <<- qf(0.5, p+1, n-p-1)
+  p1 <- ggplot(df) +
+    geom_linerange(aes(x = index, ymin = 0, ymax = cook.d)) +
+    geom_hline(aes(yintercept = 4 / n), colour = "royalblue", linetype = "dashed") +
+    labs(title = "Cook's Distance vs Index", x= "i", y = expression(D[i]))
+  p2 <- ggplot(df) +
+    geom_point(aes(x = index, y = dffit)) +
+    geom_hline(aes(yintercept = 2 * sqrt((p+1)/n)), colour = "royalblue", linetype = "dashed") +
+    geom_hline(aes(yintercept = -2 * sqrt((p+1)/n)), colour = "royalblue", linetype = "dashed") +
+    labs(title = "DFFITS vs Index", x = "i", y = expression(DFFITS[i]))
+  plot_grid(p1, p2, labels = "AUTO")
+}
+# manually inspect the influential data points
+mod.inflences <-
+  mod.inflences |>
+  # create an indicator column for if any of the dfbeta measures for each beta is greater than 2/sqrt(n)
+  # the second argument to if_any is a lambda function since the argument requires type function
+  mutate(over.dfbetas = if_any(starts_with("dfb."), ~ .x > 2/sqrt(n)))
+infl_df <- nba |>
+  mutate(over.cook.4.n = mod.inflences$cook.d > 4/n,
+         over.dffits = abs(mod.inflences$dffit) > 2 * sqrt((p+1)/n),
+         over.dfbetas = mod.inflences$over.dfbetas) |>
+  slice(which(over.cook.4.n | over.dffits | over.dfbetas))
+graph_inf(mod.inflences)
+```
+
+Figure \@ref(fig:influential) shows that the dataset has no influential points using Cook's cutoff ($F_{0.5,\ p+1,\ n-p-1} =$ `r toString(round(cook_cutoff, 3))`), but has `r infl_df |> filter(over.cook.4.n) |> nrow() |> toString()` influential points using a different cutoff ($\frac{4}{n}$ = `r toString(round(4/n), 3)`). Alternatively, the DFFITS measure shows `r infl_df |> filter(over.dffits) |> nrow() |> toString()` influential points.
+
+Manually inspecting these points do not reveal any invalid data values for all predictors before or after transformations, so they can't be removed based on invalid data criteria. 
 
 # Final Model Inference and Results
 
