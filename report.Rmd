@@ -19,6 +19,9 @@ if(!require("kableExtra")) install.packages("kableExtra")
 if(!require("cowplot")) install.packages("cowplot")
 if(!require("ggfortify")) install.packages("ggfortify")
 if(!require("car")) install.packages("car")
+if(!require("gtsummary")) install.packages("gtsummary")
+
+library("gtsummary")
 library("car")
 library("GGally")
 library("ggfortify")
@@ -224,7 +227,7 @@ nba <- nba |>
 ```
 
 We chose the log-transform for the Salary response variable to fix the violation of non-constant variance assumption, 
-and a mix of log and square/cube root transformations for the predictor variables to fix violation of linearity assumption. For log-transform of predictor variables, a small constant (square of the first quartile divided by the third quartile of each predictor) is added to avoid taking the log of 0 [@muldoon_log_0_2018].
+and a mix of log and square/cube root transformations for the predictor variables to fix violation of linearity assumption. For log-transform of predictor variables, a small constant (square of the first quartile divided by the third quartile of each predictor) is added to avoid taking the log of 0 [@muldoon_log-0_2018].
 
 Model \@ref(eq:transformed) (omitting the constant mentioned above for brevity) is specified as
 \begin{equation}
@@ -234,7 +237,7 @@ log(Salary) = \beta_0 &+ \beta_1\ \sqrt{PTS} + \beta_2\ log(PFoul) + \beta_3\ lo
 (\#eq:transformed)
 \end{split}
 \end{equation}
-Its associated diagnostic plots are included below in Figure \@ref(fig:diagnostic-transformed). While violations of non-constant variance, linearity, and normality of errors are still present in the plots, they are significantly improved compared to the original model, and are approximately satisfied to the degree to reasonably allow us to use partial F-tests to eliminate predictors.
+Its associated diagnostic plots are included below in Figure \@ref(fig:diagnostic-transformed). While violations of non-constant variance, linearity, and normality of errors are still present in the plots, they are significantly improved compared to the original model, and are approximately satisfied to the degree to reasonably allow us to use partial F-tests to eliminate predictors. It is reasonable since F-test is considered *robust* against violations of normality of error and constant variance specifically [@berger_experimental_2018].
 
 ```{r diagnostic-transformed, fig.cap = "Model with transformed response and predictors."}
 mod.transformed <- lm(tSalary ~ tPTS + tAST + tSTL + tPF + Pos1, data=nba)
@@ -252,7 +255,7 @@ We propose reduced model
 \begin{equation}
 \begin{split}
 log(Salary) = \beta_0 &+ \beta_1\ \sqrt{PTS} + \beta_2\ log(AST) \\
-&+ \beta_3\ I(SF+PF) + \beta_4\ I(PG) + \beta_5\ I(SG) + \varepsilon
+&+ \beta_3\ I(SF \lor PF) + \beta_4\ I(PG) + \beta_5\ I(SG) + \varepsilon
 (\#eq:reduced)
 \end{split}
 \end{equation}
@@ -286,7 +289,7 @@ graph_obs(mod.inflences)
 
 Figure \@ref(fig:leverage).B does not show any $|r_i| > 4$ ($n=$ `r toString(n)` large enough to use 4 as cutoff), so we don't have any outliers in our current model.
 
-From Figure \@ref(fig:leverage).A, there are leverage points in the dataset, where the blue line is the $h = \frac{2(p+1)}{n}$ cutoff. Since we do not have any outliers, all leverage points are good leverage points, so we will check influential measures using Cook's distance and DFFITS next.
+From Figure \@ref(fig:leverage).A, there are leverage points in the dataset, where the blue line is the $h = \frac{2(p+1)}{n}$ cutoff. Since we do not have any outliers, all leverage points are good leverage points, so we will check influential measures using Cook's distance, DFFITS, and DFBETAS measurements next.
 
 ```{r influential, fig.cap="Cook's distance against index."}
 graph_inf <- function(df) {
@@ -302,23 +305,69 @@ graph_inf <- function(df) {
     labs(title = "DFFITS vs Index", x = "i", y = expression(DFFITS[i]))
   plot_grid(p1, p2, labels = "AUTO")
 }
-# manually inspect the influential data points
 mod.inflences <-
   mod.inflences |>
   # create an indicator column for if any of the dfbeta measures for each beta is greater than 2/sqrt(n)
   # the second argument to if_any is a lambda function since the argument requires type function
-  mutate(over.dfbetas = if_any(starts_with("dfb."), ~ .x > 2/sqrt(n)))
+  mutate(over.dfbetas = if_any(starts_with("dfb."), ~ .x > 2/sqrt(n)),
+         over.cook.4.n = cook.d > 4/n,
+         over.dffits = abs(dffit) > 2 * sqrt((p+1)/n),
+         over.all = over.cook.4.n | over.dffits | over.dfbetas
+         )
+# we can inspect this data frame to see the influential data points
 infl_df <- nba |>
-  mutate(over.cook.4.n = mod.inflences$cook.d > 4/n,
-         over.dffits = abs(mod.inflences$dffit) > 2 * sqrt((p+1)/n),
-         over.dfbetas = mod.inflences$over.dfbetas) |>
-  slice(which(over.cook.4.n | over.dffits | over.dfbetas))
+  mutate(over.cook.4.n = mod.inflences$over.cook.4.n,
+         over.dffits = mod.inflences$over.dffits,
+         over.dfbetas = mod.inflences$over.dfbetas,
+         over.all = mod.inflences$over.all,) |>
+  slice(which(over.all))
 graph_inf(mod.inflences)
 ```
 
-Figure \@ref(fig:influential) shows that the dataset has no influential points using Cook's cutoff ($F_{0.5,\ p+1,\ n-p-1} =$ `r toString(round(cook_cutoff, 3))`), but has `r infl_df |> filter(over.cook.4.n) |> nrow() |> toString()` influential points using a different cutoff ($\frac{4}{n}$ = `r toString(round(4/n), 3)`). Alternatively, the DFFITS measure shows `r infl_df |> filter(over.dffits) |> nrow() |> toString()` influential points.
+Figure \@ref(fig:influential) shows that the dataset has no influential points using Cook's cutoff ($F_{0.5,\ p+1,\ n-p-1} =$ `r toString(round(cook_cutoff, 3))`),
+but has `r infl_df |> filter(over.cook.4.n) |> nrow() |> toString()` influential points using a different cutoff ($\frac{4}{n}=$ `r toString(round(4/n, 3))`).
+Alternatively, the DFFITS measure shows `r infl_df |> filter(over.dffits) |> nrow() |> toString()` influential points
+(with cutoff $2\sqrt{\frac{p+1}{n}}=$ `r toString(round(2 * sqrt((p+1)/n), 3))`),
+while the DFBETAS measure shows `r infl_df |> filter(over.dfbetas) |> nrow() |> toString()` influential points
+(with cutoff $\frac{2}{\sqrt{n}}=$ `r toString(round(2 / sqrt(n), 3))`).
 
-Manually inspecting these points do not reveal any invalid data values for all predictors before or after transformations, so they can't be removed based on invalid data criteria. 
+Manually inspecting these points do not reveal any invalid data values for all predictors before or after transformations, so they can't be removed based on invalid data criteria. Because our model contains already transformed variables, we attempt to use interaction terms to eliminate these observations, with no effect. The plots used to reach this conclusion is omitted from this report for brevity, but the code to generate them can be found inside the R Markdown file next to this section.
+
+```{r influential-treatment, include=FALSE}
+mod.reduced.treated1 <- lm(update(mod.reduced, . ~ . + tPos1:tPTS))
+mod.reduced.treated2 <- lm(update(mod.reduced, . ~ . + tPos1:tAST))
+mod.reduced.treated3 <- lm(update(mod.reduced, . ~ . + tPTS:tAST))
+
+# We repeat the following for each of the 3 interaction we defined
+mod.inflences.treated <- get_infl_measures(mod.reduced.treated1)
+graph_obs(mod.inflences.treated)
+graph_inf(mod.inflences.treated)
+```
+
+```{r robust-regression, fig.cap="OLS vs IWSL fits for continuous predictors. Note the minimal difference between the slopes."}
+mod.robust <- rlm(formula(mod.reduced), data = nba)
+plot_pred <- function(pred) {
+  result <- ggplot(nba, aes(x = eval(as.name(pred)), y = tSalary)) +
+    geom_point() +
+    labs(x = pred) +
+    geom_smooth(method = "lm") +
+    geom_smooth(method = "rlm")
+  return(result)
+}
+plot_grid(plot_pred("tPTS"), plot_pred("tAST"))
+```
+
+We also attempt to fit a robust regression model (iteratively re-weighted least squares fits, or IWLS) using `rlm()` from `library(MASS)`, but it does not produce any qualitative difference in terms of estimates of coefficients (see Figure \@ref(fig:robust-regression)), nor does it improve residual standard error (IWLS: `r summary(mod.robust)$sigma |> round(3)` vs OLS: `r summary(mod.reduced)$sigma |> round(3)`).
+
+In summary, we opt to leave the influential points and our model as is, since our model has no outliers, very few leverage points, and no influential points (using Cook's cutoff). Given the large size of the dataset ($n=$ `r nrow(nba) |> toString()`) and relatively few number of estimated predictors ($p=$ `r length(mod.reduced$coefficients) |> toString()`), the cutoffs for DFFITS, DFBETAS, and alternate cutoff for Cook's Distance provided in lecture are too small and sensitive to determine useful influential points. Robust regression fits also do not provide any benefits to us, so we will not use robust regression for our analysis either.
+
+```{r sensitivity-analysis, include=F}
+sub.nba <- nba |>
+  slice(which(!mod.inflences$over.all))
+mod.subset <- lm(formula(mod.reduced), data = sub.nba)
+compareCoefs(mod.reduced, mod.subset)
+```
+
 
 # Final Model Inference and Results
 
