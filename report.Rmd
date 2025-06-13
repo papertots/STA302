@@ -20,7 +20,7 @@ if(!require("cowplot")) install.packages("cowplot")
 if(!require("ggfortify")) install.packages("ggfortify")
 if(!require("car")) install.packages("car")
 if(!require("gtsummary")) install.packages("gtsummary")
-
+library("labelled")
 library("gtsummary")
 library("car")
 library("GGally")
@@ -128,6 +128,17 @@ plot_grid(plotlist = nba.hist, labels = "AUTO")
 
 ## Variable Summaries
 
+```{r var-labels}
+var_label(nba) <- list(
+  Salary = "Salary (USD)",
+  PTS = "Points",
+  AST = "Assists",
+  PF = "Personal fouls",
+  STL = "Steals",
+  Pos1 = "Position on Court"
+)
+```
+
 ```{r scatter-matrix, fig.cap="Scatterplot matrix of respoonse and continuous predictors", fig.height=3.5}
 ggpairs(nba,
         columns = c("PTS", "PF", "AST", "STL", "Salary"))
@@ -224,6 +235,12 @@ nba <- nba |>
          Pos1 = relevel(Pos1, "SF"),
          tPos1 = fct_collapse(Pos1, "SF+PF" = c("SF", "PF")),
          tPos1 = relevel(tPos1, "SF+PF"))
+var_label(nba) <- list(
+  tPTS = "sqrt(Points per game)",
+  tAST = "log(Assists per game)",
+  tSTL = "log(Steals per game)",
+  tPF = "log(Personal fouls per game)"
+)
 ```
 
 We chose the log-transform for the Salary response variable to fix the violation of non-constant variance assumption, 
@@ -261,6 +278,50 @@ log(Salary) = \beta_0 &+ \beta_1\ \sqrt{PTS} + \beta_2\ log(AST) \\
 \end{equation}
 which removes the transformed STL and PF predictors, as well as collapsing SF and PF categorical levels into the same level. The choices in these predictors are inspired by the R summary output of the model (which we will omit here), where the p-value for the t-test for each individual predictor's coefficient are high. A partial F-test with model \@ref(eq:reduced) as $H_0$, and the transformed full model \@ref(eq:transformed) above as $H_1$ gives us a p-value of 0.267 **[INSERT ANOVA TABLE HERE]**, which is large enough to indicates that the reduced model should be used, even with linear regression assumptions only approximately satisfied.
 
+## Additional Predictors
+
+```{r var-additional, fig.cap="Distribution of the additional predictors."}
+nba <- nba |> mutate(tFvot = log(Fvot))
+var_label(nba$tFvot) <- "log (Fan Votes)"
+nba.hist$tFvot <- ggplot(nba) +
+  geom_histogram(aes(tFvot, y = after_stat(density)),
+                 breaks = get_scott(nba$tFvot)) +
+  geom_density(aes(tFvot)) +
+  labs(x = "log(Fan Votes)")
+nba.hist$Age <- ggplot(nba) +
+  geom_histogram(aes(Age, y = after_stat(density)),
+                 breaks = get_scott(nba$Age)) +
+  geom_density(aes(Age))
+plot_grid(nba.hist$tFvot, nba.hist$Age, labels = "AUTO")
+```
+
+```{r diagnostic-additional, fig.cap="Diagnostic of the new fitted model after incorporating additional predictors."}
+mod.additional <- lm(formula = tSalary ~ tPTS + tAST + tFvot + Age + tPos1, data = nba)
+autoplot(mod.additional, which = c(1,2))
+```
+
+Because the project requires 5 predictors, we needed to include 2 additional predictors. We propose adding $log(\text{Fan Votes})$ and Age to incorporate popularity and seniority measures.
+
+Figure \@ref(fig:var-additional) shows their distribution, and Figure \@ref(fig:diagnostic-additional) shows that regression assumptions are all still approximately satisfied for the updated Model \@ref(eq:additional), similar to what we saw earlier in Figure \@ref(fig:diagnostic-transformed).
+Specifically, while the blue mean line in Figure \@ref(fig:diagnostic-additional) (left) is not completely straight, it's close enough to a constant of zero to approximately satisfy the assumption of linearity.
+The spread of points around 0 is also approximately the same and therefore approximately satisfy the constant variation of error assumption.
+In Figure \@ref(fig:diagnostic-additional) (right), the distribution of standardized residuals is slightly left-skewed, but it's close enough to normality that most of our analysis (F-tests and confidence intervals) still hold by robustness of ANOVA F-test and central limit theorem (with $n=$ `r nrow(mod.additional$model)`), respectively.
+\begin{equation}
+\begin{split}
+log(Salary) = \beta_0 &+ \beta_1\ \sqrt{PTS} + \beta_2\ log(AST) + \beta_3 log(FVot) \\
+&+ \beta_4 Age + \beta_5\ I(SF \lor PF) + \beta_6\ I(PG) + \beta_7\ I(SG) + \varepsilon
+(\#eq:additional)
+\end{split}
+\end{equation}
+
+```{r additional-measures}
+anova(mod.reduced, mod.additional)
+vif(mod.additional)
+```
+
+A partial F test gives us a very significant p-value of $2.2\times 10^{-16}$, while each estimated coefficient has a variance inflation factor $<5$,
+therefore we decide to use this as our final model for analysis.
+
 ## Problematic Observations
 
 ```{r leverage, fig.cap="Plot of leverage and standardized residuals against index."}
@@ -283,13 +344,13 @@ graph_obs <- function(df) {
     labs(title = "Standardized Residuals vs Index", x = "i", y = expression(r[i]))
   plot_grid(p1, p2, labels = "AUTO")
 }
-mod.inflences <- get_infl_measures(mod.reduced)
-graph_obs(mod.inflences)
+mod.influences <- get_infl_measures(mod.additional)
+graph_obs(mod.influences)
 ```
 
-Figure \@ref(fig:leverage).B does not show any $|r_i| > 4$ ($n=$ `r toString(n)` large enough to use 4 as cutoff), so we don't have any outliers in our current model.
+Figure \@ref(fig:leverage).B only shows 1 data point whose $|r_i| > 4$ ($n=$ `r toString(n)` large enough to use 4 as cutoff), so we only have 1 outliers in our current model.
 
-From Figure \@ref(fig:leverage).A, there are leverage points in the dataset, where the blue line is the $h = \frac{2(p+1)}{n}$ cutoff. Since we do not have any outliers, all leverage points are good leverage points, so we will check influential measures using Cook's distance, DFFITS, and DFBETAS measurements next.
+From Figure \@ref(fig:leverage).A, there are leverage points in the dataset, where the blue line is the $h = \frac{2(p+1)}{n}$ cutoff. Since we only have 1 outlier, all but one of our leverage points are good leverage points, so we will check influential measures using Cook's distance, DFFITS, and DFBETAS measurements next.
 
 ```{r influential, fig.cap="Cook's distance against index."}
 graph_inf <- function(df) {
@@ -305,23 +366,25 @@ graph_inf <- function(df) {
     labs(title = "DFFITS vs Index", x = "i", y = expression(DFFITS[i]))
   plot_grid(p1, p2, labels = "AUTO")
 }
-mod.inflences <-
-  mod.inflences |>
+mod.influences <-
+  mod.influences |>
   # create an indicator column for if any of the dfbeta measures for each beta is greater than 2/sqrt(n)
   # the second argument to if_any is a lambda function since the argument requires type function
   mutate(over.dfbetas = if_any(starts_with("dfb."), ~ .x > 2/sqrt(n)),
+         over.outlier = sresid > 4,
          over.cook.4.n = cook.d > 4/n,
          over.dffits = abs(dffit) > 2 * sqrt((p+1)/n),
          over.all = over.cook.4.n | over.dffits | over.dfbetas
          )
 # we can inspect this data frame to see the influential data points
 infl_df <- nba |>
-  mutate(over.cook.4.n = mod.inflences$over.cook.4.n,
-         over.dffits = mod.inflences$over.dffits,
-         over.dfbetas = mod.inflences$over.dfbetas,
-         over.all = mod.inflences$over.all,) |>
+  mutate(over.cook.4.n = mod.influences$over.cook.4.n,
+         over.outlier = mod.influences$over.outlier,
+         over.dffits = mod.influences$over.dffits,
+         over.dfbetas = mod.influences$over.dfbetas,
+         over.all = mod.influences$over.all,) |>
   slice(which(over.all))
-graph_inf(mod.inflences)
+graph_inf(mod.influences)
 ```
 
 Figure \@ref(fig:influential) shows that the dataset has no influential points using Cook's cutoff ($F_{0.5,\ p+1,\ n-p-1} =$ `r toString(round(cook_cutoff, 3))`),
@@ -331,21 +394,26 @@ Alternatively, the DFFITS measure shows `r infl_df |> filter(over.dffits) |> nro
 while the DFBETAS measure shows `r infl_df |> filter(over.dfbetas) |> nrow() |> toString()` influential points
 (with cutoff $\frac{2}{\sqrt{n}}=$ `r toString(round(2 / sqrt(n), 3))`).
 
-Manually inspecting these points do not reveal any invalid data values for all predictors before or after transformations, so they can't be removed based on invalid data criteria. Because our model contains already transformed variables, we attempt to use interaction terms to eliminate these observations, with no effect. The plots used to reach this conclusion is omitted from this report for brevity, but the code to generate them can be found inside the R Markdown file next to this section.
+Manually inspecting these points do not reveal any invalid data values for all predictors before or after transformations, so they can't be removed based on invalid data criteria. Because our model contains already transformed variables, we attempt to use interaction terms to eliminate or reduce these observations, with no effect. The plots used to reach this conclusion is omitted from this report for brevity, but the code to generate them can be found inside the R Markdown file next to this section.
 
-```{r influential-treatment, include=FALSE}
-mod.reduced.treated1 <- lm(update(mod.reduced, . ~ . + tPos1:tPTS))
-mod.reduced.treated2 <- lm(update(mod.reduced, . ~ . + tPos1:tAST))
-mod.reduced.treated3 <- lm(update(mod.reduced, . ~ . + tPTS:tAST))
+```{r influential-treatment, eval=F}
+# we can uncomment each of the following treated models with different
+# interaction terms
+mod.treated <-
+# lm(update(mod.additional, . ~ . + tPos1:tPTS))
+# lm(update(mod.additional, . ~ . + tPos1:tAST))
+# lm(update(mod.additional, . ~ . + tPos1:tFvot))
+# lm(update(mod.additional, . ~ . + tPos1:Age))
+lm(update(mod.additional, . ~ . + tPTS:tAST))
 
-# We repeat the following for each of the 3 interaction we defined
-mod.inflences.treated <- get_infl_measures(mod.reduced.treated1)
-graph_obs(mod.inflences.treated)
-graph_inf(mod.inflences.treated)
+# and repeat the following to check outliers, leverage and influential points
+model_infl <- get_infl_measures(mod.treated)
+graph_obs(model_infl)
+graph_inf(model_infl)
 ```
 
 ```{r robust-regression, fig.cap="OLS vs IWSL fits for continuous predictors. Note the minimal difference between the slopes."}
-mod.robust <- rlm(formula(mod.reduced), data = nba)
+mod.robust <- rlm(formula(mod.additional), data = nba)
 plot_pred <- function(pred) {
   result <- ggplot(nba, aes(x = eval(as.name(pred)), y = tSalary)) +
     geom_point() +
@@ -354,7 +422,7 @@ plot_pred <- function(pred) {
     geom_smooth(method = "rlm")
   return(result)
 }
-plot_grid(plot_pred("tPTS"), plot_pred("tAST"))
+plot_grid(plot_pred("tPTS"), plot_pred("tAST"), plot_pred("tFvot"), plot_pred("Age"))
 ```
 
 We also attempt to fit a robust regression model (iteratively re-weighted least squares fits, or IWLS) using `rlm()` from `library(MASS)`, but it does not produce any qualitative difference in terms of estimates of coefficients (see Figure \@ref(fig:robust-regression)), nor does it improve residual standard error (IWLS: `r summary(mod.robust)$sigma |> round(3)` vs OLS: `r summary(mod.reduced)$sigma |> round(3)`).
@@ -370,6 +438,11 @@ compareCoefs(mod.reduced, mod.subset)
 
 
 # Final Model Inference and Results
+
+```{r summary-table}
+tbl_regression(mod.reduced, intercept = T)
+
+```
 
 # Discussion and Conclusion
 
