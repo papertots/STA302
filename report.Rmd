@@ -252,6 +252,7 @@ nba <- nba |>
 
 We chose the log-transform for the Salary response variable to fix the violation of non-constant variance assumption, 
 and a mix of log and square/cube root transformations for the predictor variables to fix violation of linearity assumption. For log-transform of predictor variables, a small constant (square of the first quartile divided by the third quartile of each predictor) is added to avoid taking the log of 0 [@muldoon_log-0_2018].
+While this would slightly change the sampling distribution of the corresponding $\hat{\beta}_{LE}$, it should remain close enough to the true distribution to not drastically affect our confidence interval calculation for our large dataset [@muldoon_log-0_2018].
 
 Model \@ref(eq:transformed) (omitting the constant mentioned above for brevity) is specified as
 \begin{equation}
@@ -530,16 +531,43 @@ regression_tbl <- tbl_regression(mod.additional, intercept = T,
 # show_header_names(regression_tbl)
 regression_tbl |>
   as_kable_extra(format = "latex", booktabs = TRUE, addtl_fmt = F) |>
-  kable_styling(latex_options = c("hold_position"))
+  kable_styling()
 ```
 
-Table \@ref(tab:summary-table) Back-transformations are performed as follows:
+Table \@ref(tab:summary-table) back-transformations are performed as follows:
 since one-unit increase in the transformed predictors corresponds to an expected $\hat{\beta_i}$ unit increase in $log($`Salary`$)$,
-(holding all other predictors constant)
-then it's also associated with an expected increase of `Salary` by a factor of $e^{\hat{\beta_i}}$,
+holding all other predictors constant.
+In other words, it's also associated with an expected increase of `Salary` by a factor of $e^{\hat{\beta_i}}$,
 i.e. an increase of $(e^{\hat{\beta_i}} - 1)100\%$.
 End-points of the (95%) confidence interval is transformed and interpreted similarly, that we are 95% confident that the true expected percentage increase lies within the interval.
 This interpretation is used for the following analysis, unless otherwise noted.
+
+## Coefficient Interpretations
+
+```{r interpretations}
+b_hat <- regression_tbl$table_body$exp_estimate
+names(b_hat) <- regression_tbl$table_body$label |> names()
+```
+
+Our final regression model \@ref(eq:additional) examines how performance and demographic factors predict log-transformed NBA player salaries. The predictors include: points per game (transformed by square root), assists per game (log-transformed), fan votes (log-transformed), age, and primary position (categorical with the forwards as reference).
+
+$\sqrt{\text{Points}}$ is the most influential predictor. A one-unit increase in $\sqrt{\text{Points}}$ is associated with an expected average $\phantom{}`r b_hat["tPTS"]`$ increase in salary (refer to Table \@ref(tab:summary-table) for the 95% confidence interval for this and all following estimates). This makes intuitive sense: scoring is a primary driver of player valuation and contract negotiation in the NBA, as it's the ultimate objective of the game: to outscore your opponent. A team needs to accumulate more points than the opposing team to win, making scoring the driving force behind all offensive strategies.
+
+$log(\text{AST})$ is also highly significant, where each one-unit increase in the log of assists per game (i.e. base assists increase by a factor of $e \approx `r exp(1) |> round(2)`$) leads to a $\phantom{}`r b_hat["tAST"]`$ increase in salary. Assists reflect a player’s playmaking ability; it's the skill of creating offensive advantages for oneself and teammates. It's more than just passing, it involves drawing defenses in, creating open shots, and keeping the offence flowing. A good playmaker can significantly impact a team's success by engaging all players and making them feel valuable, even if they aren't scoring. Especially important for guards and point-forwards, making this an expected and meaningful result.
+
+$log(\text{Fan Votes})$ has a smaller but still significant impact. A one-unit increase corresponds to a $\phantom{}`r b_hat["tFvot"]`$ increase in salary. This supports the idea that player popularity and marketability contribute to pay. While not as impactful as on-court performance, this reflects the entertainment aspect of the league: fan-favorite players are more likely to bring media attention, merchandise sales, and brand value to a franchise.
+
+The coefficient for Age suggesting that for each additional year of age, salary increases by approximately $\phantom{}`r b_hat["Age"]`$. [**We could move this part to section 6 to talk about how we can improve our analysis with restricted cubic splines.**] However, this linear model cannot capture the full parabolic nature of career earnings in the NBA. Typically, players receive large raises after their rookie-scale contracts (usually after 3–4 years in the league), leading to a steep rise in earnings through their prime (roughly ages 25–30). After that point, declining athletic performance, injuries, and team roster priorities may reduce earning power, especially for non-star players.
+
+Our model uses SF/PF (Forwards) as the reference level, but it would be inappropriate to interpreted the intercept estimate directly, since player age is a predictor and should not take a value of 0.
+Center (C) players are expected to earn $\phantom{}`r b_hat["tPos1Center"]`$ more on average compared to the forwards, point guards (PG) earn $\phantom{}`r b_hat["tPos1Point Guard"] |> gsub("-", "", x = _)`$ less,
+and shooting guards (SG) earn $\phantom{}`r b_hat["tPos1Shooting Guard"] |> gsub("-", "", x = _)`$ less.
+
+These differences reflect both team strategy and labour market dynamics. For example, centers often anchor the defense, rebound at a high rate, and are paid premiums for size and rim protection. Guards, while important, on average, are more numerous and replaceable given their smaller size and more common physical demographic, which may depress average earnings.
+
+Overall, our results highlight that performance statistics, particularly scoring and playmaking, are the strongest predictors of salary. Age and experience also play major roles, but the relationship is more complex than a simple linear increase. Fan popularity and position add important context, revealing that salary is shaped by a combination of performance, perception, and team needs. This multifaceted structure underpins the challenges in fairly and accurately modelling player compensation in professional sports.
+
+## Model Performance Assessment
 
 ```{r model-measures, results="markup"}
 measures <- data.frame(
@@ -551,7 +579,7 @@ measures <- data.frame(
 )
 get_measures <- function(df, model, index) {
   if (!index %in% df$Model) {
-    df <- df |>
+    df |>
       add_row(
         Model = index,
         AIC = AIC(model),
@@ -559,24 +587,20 @@ get_measures <- function(df, model, index) {
         R2 = summary(model)$r.squared,
         adjR2 = summary(model)$adj.r.squared
       )
-    return(df)
   } else {
     print(paste("Model", index, "already exists."))
-    return(df)
+    df
   }
 }
 measures <- get_measures(measures, nba_model, 1)
 measures <- get_measures(measures, mod.transformed, 2)
 measures <- get_measures(measures, mod.reduced, 3)
 measures <- get_measures(measures, mod.additional, 4)
-measures_tbl <- kable(measures, digits = 3, format = "latex",
-                      booktabs = TRUE, escape = FALSE,
-                      caption = "Model performance metrics.") |>
+measures |> kable(digits = 3, booktabs = TRUE, format = "latex", escape = FALSE,
+                  caption = "Model performance metrics.",
+                  col.names = c("Model", "AIC", "BIC", "$R^2$", "$R^2_{adj}$")) |>
   kable_styling()
-measures_tbl
 ```
-
-[placeholder text]
 
 # Discussion and Conclusion
 
@@ -605,6 +629,5 @@ Jack Zhang
 - Assisted in selecting and evaluating potential datasets for analysis
 - Wrote the notes in the Group Teamwork Agreement Doc
 - Proofreading to ensure clarity and accuracy
-
 
 # Bibliography
