@@ -13,7 +13,7 @@ link-citations: true
 
 ```{r setup, message=FALSE, results="hide", include=FALSE}
 knitr::opts_chunk$set(echo = FALSE, eval = TRUE, results="hide", message=FALSE,
-                      cache=TRUE, fig.pos = "H", out.extra = "")
+                      cache= T, fig.pos = "H", out.extra = "")
 if(!require("GGally")) install.packages("GGally")
 if(!require("kableExtra")) install.packages("kableExtra")
 if(!require("cowplot")) install.packages("cowplot")
@@ -129,13 +129,14 @@ plot_grid(plotlist = nba.hist, labels = "AUTO")
 ## Variable Summaries
 
 ```{r var-labels}
-var_label(nba) <- list(
-  Salary = "Salary (USD)",
-  PTS = "Points",
-  AST = "Assists",
-  PF = "Personal fouls",
-  STL = "Steals",
-  Pos1 = "Position on Court"
+nba <- nba |>
+  set_variable_labels(
+    Salary = "Salary (USD)",
+    PTS = "Points",
+    AST = "Assists",
+    PF = "Personal fouls",
+    STL = "Steals",
+    Pos1 = "Position on Court"
 )
 ```
 
@@ -234,12 +235,20 @@ nba <- nba |>
          tPF = log(PF + (quantile(PF, 0.25)/quantile(PF, 0.25))^2),
          Pos1 = relevel(Pos1, "SF"),
          tPos1 = fct_collapse(Pos1, "SF+PF" = c("SF", "PF")),
-         tPos1 = relevel(tPos1, "SF+PF"))
-var_label(nba) <- list(
-  tPTS = "sqrt(Points per game)",
-  tAST = "log(Assists per game)",
-  tSTL = "log(Steals per game)",
-  tPF = "log(Personal fouls per game)"
+         tPos1 = relevel(tPos1, "SF+PF")) |>
+  # rename levels
+  mutate(tPos1 = fct_recode(tPos1,
+                            "Forwards" = "SF+PF",
+                            "Center" = "C",
+                            "Shooting Guard" = "SG",
+                            "Point Guard" = "PG"))
+nba <- nba |>
+  set_variable_labels(
+    tPTS = "$\\sqrt{\\text{Points}}$",
+    tAST = "log(Assists)",
+    tSTL = "log(Steals)",
+    tPF = "log(Personal Fouls)",
+    tPos1 = "Position on Court"
 )
 ```
 
@@ -272,7 +281,7 @@ We propose reduced model
 \begin{equation}
 \begin{split}
 log(Salary) = \beta_0 &+ \beta_1\ \sqrt{PTS} + \beta_2\ log(AST) \\
-&+ \beta_3\ I(SF \lor PF) + \beta_4\ I(PG) + \beta_5\ I(SG) + \varepsilon
+&+ \beta_3\ I(C) + \beta_4\ I(PG) + \beta_5\ I(SG) + \varepsilon
 (\#eq:reduced)
 \end{split}
 \end{equation}
@@ -282,7 +291,7 @@ which removes the transformed STL and PF predictors, as well as collapsing SF an
 
 ```{r var-additional, fig.cap="Distribution of the additional predictors."}
 nba <- nba |> mutate(tFvot = log(Fvot))
-var_label(nba$tFvot) <- "log (Fan Votes)"
+var_label(nba$tFvot) <- "log(Fan Votes)"
 nba.hist$tFvot <- ggplot(nba) +
   geom_histogram(aes(tFvot, y = after_stat(density)),
                  breaks = get_scott(nba$tFvot)) +
@@ -309,7 +318,7 @@ In Figure \@ref(fig:diagnostic-additional) (right), the distribution of standard
 \begin{equation}
 \begin{split}
 log(Salary) = \beta_0 &+ \beta_1\ \sqrt{PTS} + \beta_2\ log(AST) + \beta_3 log(FVot) \\
-&+ \beta_4 Age + \beta_5\ I(SF \lor PF) + \beta_6\ I(PG) + \beta_7\ I(SG) + \varepsilon
+&+ \beta_4 Age + \beta_5\ I(C) + \beta_6\ I(PG) + \beta_7\ I(SG) + \varepsilon
 (\#eq:additional)
 \end{split}
 \end{equation}
@@ -427,9 +436,9 @@ plot_grid(plot_pred("tPTS"), plot_pred("tAST"), plot_pred("tFvot"), plot_pred("A
 
 We also attempt to fit a robust regression model (iteratively re-weighted least squares fits, or IWLS) using `rlm()` from `library(MASS)`, but it does not produce any qualitative difference in terms of estimates of coefficients (see Figure \@ref(fig:robust-regression)), nor does it improve residual standard error (IWLS: `r summary(mod.robust)$sigma |> round(3)` vs OLS: `r summary(mod.reduced)$sigma |> round(3)`).
 
-In summary, we opt to leave the influential points and our model as is, since our model has no outliers, very few leverage points, and no influential points (using Cook's cutoff). Given the large size of the dataset ($n=$ `r nrow(nba) |> toString()`) and relatively few number of estimated predictors ($p=$ `r length(mod.reduced$coefficients) |> toString()`), the cutoffs for DFFITS, DFBETAS, and alternate cutoff for Cook's Distance provided in lecture are too small and sensitive to determine useful influential points. Robust regression fits also do not provide any benefits to us, so we will not use robust regression for our analysis either.
+In summary, we opt to leave the influential points and our model as is, since our model has no outliers, very few leverage points, and no influential points (using Cook's cutoff). Given the large size of the dataset ($n=$ `r nrow(nba) |> toString()`) and relatively few number of estimated predictors ($p=$ `r length(mod.reduced$coefficients) |> toString()`), the cutoffs for DFFITS, DFBETAS, and alternate cutoff for Cook's Distance provided in lecture are too small and sensitive to determine useful influential points. Robust regression fits also do not provide any benefits to us, plus we don't know if we meet all the assumptions required by the robust regression method, so we will not use robust regression for our analysis.
 
-```{r sensitivity-analysis, include=F}
+```{r sensitivity-analysis, eval=F}
 sub.nba <- nba |>
   slice(which(!mod.inflences$over.all))
 mod.subset <- lm(formula(mod.reduced), data = sub.nba)
@@ -439,9 +448,68 @@ compareCoefs(mod.reduced, mod.subset)
 
 # Final Model Inference and Results
 
-```{r summary-table}
-tbl_regression(mod.reduced, intercept = T)
+## Model Summary
+```{r summary-table, results="markup"}
+p_round_fn <- function(num) {
+  result <- signif(num, 3) |> as.character()
+  return(result)
+}
+round_fn <- function(num) {
+  result <- round(num, 3) |> as.character()
+  return(result)
+}
+regression_tbl <- tbl_regression(
+  label = list(
+    tPTS = "sqrt(Points)",
+    tAST = "log(Assists)",
+    tFvot = "log(Fan Votes)",
+    Age = "Age",
+    tPos1 = "Position on Court"
+  ),
+  mod.additional, intercept = T, pvalue_fun = p_round_fn, estimate_fun = round_fn) |>
+  modify_caption("Fitted regression model summary") |>
+  modify_header(label = "**Predictor Variables**", estimate = "**Beta estimate**")
+  #modify_footnote(update = everything() ~ "Predictors values are per game values.") |>
+# show_header_names(regression_tbl)
+regression_tbl <- regression_tbl |>
+  as_kable_extra(booktabs = TRUE, escape = FALSE) |>
+  kable_styling(latex_options = "hold_position")
+regression_tbl
+```
 
+```{r model-measures, results="markup"}
+measures <- data.frame(
+  Model = integer(),
+  AIC = numeric(),
+  BIC = numeric(),
+  R2 = numeric(),
+  adjR2 = numeric()
+)
+get_measures <- function(df, model, index) {
+  if(!index %in% df$Model) {
+    df <- df |>
+      add_row(
+        Model = index,
+        AIC = AIC(model),
+        BIC = BIC(model),
+        R2 = summary(model)$r.squared,
+        adjR2 = summary(model)$adj.r.squared
+      )
+    return(df)
+  } else {
+    print(paste("Model", index, "already exists."))
+    return(df)
+  }
+}
+measures <- get_measures(measures, nba_model, 1)
+measures <- get_measures(measures, mod.transformed, 2)
+measures <- get_measures(measures, mod.reduced, 3)
+measures <- get_measures(measures, mod.additional, 4)
+measures_tbl <- kable(measures, digits = 3, format = "latex",
+                      booktabs = TRUE, escape = FALSE,
+                      caption = "Model performance metrics.") |>
+  kable_styling()
+measures_tbl
 ```
 
 # Discussion and Conclusion
