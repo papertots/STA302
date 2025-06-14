@@ -30,7 +30,6 @@ library("cowplot")
 library("MASS")
 library("forcats")
 library("bookdown")
-library("readr")
 library("dplyr")
 library("patchwork")
 ggplot2::theme_set(theme_minimal())
@@ -243,10 +242,10 @@ nba <- nba |>
                             "Point Guard" = "PG"))
 nba <- nba |>
   set_variable_labels(
-    tPTS = "\\sqrt{\\text{Points}}",
-    tAST = "log(Assists)",
-    tSTL = "log(Steals)",
-    tPF = "log(Personal Fouls)",
+    tPTS = "$\\sqrt{\\text{Points}}$",
+    tAST = "$log($Assists$)$",
+    tSTL = "$log($Steals$)$",
+    tPF = "$log($Personal Fouls$)$",
     tPos1 = "Position on Court"
 )
 ```
@@ -290,7 +289,7 @@ which removes the transformed STL and PF predictors, as well as collapsing SF an
 
 ```{r var-additional, fig.cap="Distribution of the additional predictors."}
 nba <- nba |> mutate(tFvot = log(Fvot))
-var_label(nba$tFvot) <- "log(Fan Votes)"
+var_label(nba$tFvot) <- "$log($Fan Votes$)$"
 nba.hist$tFvot <- ggplot(nba) +
   geom_histogram(aes(tFvot, y = after_stat(density)),
                  breaks = get_scott(nba$tFvot)) +
@@ -453,7 +452,7 @@ compareCoefs(mod.reduced, mod.subset)
 
 ## Model Summary
 
-```{r summary-table, results="markup", fig.cap="Fitted regression model summary.", eval=FALSE}
+```{r summary-table, results="markup", fig.cap="Fitted regression model summary."}
 p_round_fn <- function(num) {
   result <- signif(num, 3) |> as.character()
   return(result)
@@ -465,7 +464,11 @@ round_fn <- function(num) {
 regression_tbl <- tbl_regression(
   mod.additional, intercept = T, pvalue_fun = p_round_fn, estimate_fun = round_fn) |>
   modify_caption("Fitted regression model summary") |>
-  modify_header(label = "Predictor variables", estimate = "\\beta")
+  modify_header(label = "Predictor variables",
+                # need to surround \\beta in double brackets to escape gtsummary formatting
+                estimate = "$\\hat{{\\beta}}$",
+                # with addtl_fmt=F, need to escape %
+                ci = "**95\\% CI**")
   #modify_footnote(update = everything() ~ "Predictors values are per game values.") |>
 # show_header_names(regression_tbl)
 regression_tbl <- regression_tbl |>
