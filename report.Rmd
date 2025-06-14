@@ -453,29 +453,93 @@ compareCoefs(mod.reduced, mod.subset)
 ## Model Summary
 
 ```{r summary-table, results="markup", fig.cap="Fitted regression model summary."}
-p_round_fn <- function(num) {
-  result <- signif(num, 3) |> as.character()
-  return(result)
+get_percent_increase_pred <- function(x) {
+  result <- (exp(x) - 1) * 100
+  result |>
+    round() |>
+    format(nsmall = 1) |>
+    as.character() |>
+    paste0("\\%")
 }
-round_fn <- function(num) {
-  result <- round(num, 3) |> as.character()
-  return(result)
+get_percent_increase_intercept <- function(x) {
+  x |>
+    exp() |>
+    round() |>
+    as.character() |>
+    # . = _ is to specify that the pipe goes into the second argument (_ is the native pipe placeholder)
+    paste0("\\$", . = _)
 }
-regression_tbl <- tbl_regression(
-  mod.additional, intercept = T, pvalue_fun = p_round_fn, estimate_fun = round_fn) |>
+get_exp_ci <- function(df) {
+  df <- df |>
+    tidyr::separate_wider_delim(ci, names = c("exp_ci_lower", "exp_ci_higher"), delim = ", ", cols_remove = F)
+  pred_exp_ci <- df |>
+    filter(var_type == "continuous" | (!is.na(reference_row) & !reference_row)) |>
+    mutate(
+      across(starts_with("exp_ci_"),
+             ~ .x |>
+               as.numeric() |>
+               get_percent_increase_pred()
+             )
+      )
+  intercept_exp_ci <- df |>
+    filter(var_type == "intercept") |>
+    mutate(
+      across(starts_with("exp_ci_"),
+             ~ .x |>
+               as.numeric() |>
+               get_percent_increase_intercept()
+            )
+    )
+  df |>
+    rows_update(pred_exp_ci, by = c("label")) |>
+    rows_update(intercept_exp_ci, by = c("label")) |>
+    tidyr::unite(exp_ci, starts_with("exp_ci_"), sep = ", ", na.rm = TRUE) |>
+    relocate(exp_ci, .after = ci)
+}
+
+get_exp_estimate <- function(df) {
+  pred_exp_estimate <- df |>
+    filter(var_type == "continuous" | (!is.na(reference_row) & !reference_row)) |>
+    mutate(exp_estimate = estimate |> get_percent_increase_pred())
+  intercept_exp_estimate <- df |>
+    filter(var_type == "intercept") |>
+    mutate(exp_estimate = estimate |> get_percent_increase_intercept())
+  df |>
+    tibble::add_column(exp_estimate = character(length = nrow(df))) |>
+    rows_update(pred_exp_estimate, by = c("label")) |>
+    rows_update(intercept_exp_estimate, by = c("label")) |>
+    relocate(exp_estimate, .after = estimate)
+}
+
+regression_tbl <- tbl_regression(mod.additional, intercept = T,
+                                 pvalue_fun = {\(x) signif(x, 3) |> as.character()},
+                                 estimate_fun = {\(x) round(x, 3) |> as.character()}) |>
+  add_vif(statistic = "GVIF") |>
+  modify_table_body(get_exp_ci) |>
+  modify_table_body(get_exp_estimate) |>
   modify_caption("Fitted regression model summary") |>
   modify_header(label = "Predictor variables",
                 # need to surround \\beta in double brackets to escape gtsummary formatting
                 estimate = "$\\hat{{\\beta}}$",
+                exp_estimate = "Back-transformed $\\hat{{\\beta}}$",
                 # with addtl_fmt=F, need to escape %
-                ci = "**95\\% CI**")
-  #modify_footnote(update = everything() ~ "Predictors values are per game values.") |>
+                ci = "95\\% CI",
+                exp_ci = "Back-transformed CI") |>
+  modify_footnote(exp_estimate = "See below for details about the back-transforms.",
+                  label = "Predictors values are per game values.")
 # show_header_names(regression_tbl)
-regression_tbl <- regression_tbl |>
+regression_tbl |>
   as_kable_extra(format = "latex", booktabs = TRUE, addtl_fmt = F) |>
   kable_styling(latex_options = c("hold_position"))
-regression_tbl
 ```
+
+Table \@ref(tab:summary-table) Back-transformations are performed as follows:
+since one-unit increase in the transformed predictors corresponds to an expected $\hat{\beta_i}$ unit increase in $log($`Salary`$)$,
+(holding all other predictors constant)
+then it's also associated with an expected increase of `Salary` by a factor of $e^{\hat{\beta_i}}$,
+i.e. an increase of $(e^{\hat{\beta_i}} - 1)100\%$.
+End-points of the (95%) confidence interval is transformed and interpreted similarly, that we are 95% confident that the true expected percentage increase lies within the interval.
+This interpretation is used for the following analysis, unless otherwise noted.
 
 ```{r model-measures, results="markup"}
 measures <- data.frame(
