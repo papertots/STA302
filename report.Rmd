@@ -4,7 +4,7 @@ author: "Yizhe Zhao, Valentyn Lytvyniuk, Cyre Beroncal, Shi Wang, and Jack Zhang
 date: "`r Sys.Date()`"
 output:
  bookdown::pdf_document2:
-   extra_dependencies: ["float"]
+#   extra_dependencies: ["float", "booktabs"]
 bibliography: ["citations.bib"]
 biblio-style: "apa"
 csl: "apa-no-ampersand"
@@ -27,7 +27,6 @@ library("GGally")
 library("ggfortify")
 library("kableExtra")
 library("cowplot")
-library("knitr")
 library("MASS")
 library("forcats")
 library("bookdown")
@@ -244,7 +243,7 @@ nba <- nba |>
                             "Point Guard" = "PG"))
 nba <- nba |>
   set_variable_labels(
-    tPTS = "$\\sqrt{\\text{Points}}$",
+    tPTS = "\\sqrt{\\text{Points}}",
     tAST = "log(Assists)",
     tSTL = "log(Steals)",
     tPF = "log(Personal Fouls)",
@@ -357,13 +356,13 @@ mod.influences <- get_infl_measures(mod.additional)
 graph_obs(mod.influences)
 ```
 
-Figure \@ref(fig:leverage).B only shows 1 data point whose $|r_i| > 4$ ($n=$ `r toString(n)` large enough to use 4 as cutoff), so we only have 1 outliers in our current model.
+Figure \@ref(fig:leverage).B only shows 1 data point whose $|r_i| > 4$ ($n= `r toString(n)`$ large enough to use 4 as cutoff), so we only have 1 outliers in our current model.
 
 From Figure \@ref(fig:leverage).A, there are leverage points in the dataset, where the blue line is the $h = \frac{2(p+1)}{n}$ cutoff. Since we only have 1 outlier, all but one of our leverage points are good leverage points, so we will check influential measures using Cook's distance, DFFITS, and DFBETAS measurements next.
 
 ```{r influential, fig.cap="Cook's distance against index."}
+cook_cutoff <- qf(0.5, p+1, n-p-1)
 graph_inf <- function(df) {
-  cook_cutoff <<- qf(0.5, p+1, n-p-1)
   p1 <- ggplot(df) +
     geom_linerange(aes(x = index, ymin = 0, ymax = cook.d)) +
     geom_hline(aes(yintercept = 4 / n), colour = "royalblue", linetype = "dashed") +
@@ -396,12 +395,12 @@ infl_df <- nba |>
 graph_inf(mod.influences)
 ```
 
-Figure \@ref(fig:influential) shows that the dataset has no influential points using Cook's cutoff ($F_{0.5,\ p+1,\ n-p-1} =$ `r toString(round(cook_cutoff, 3))`),
-but has `r infl_df |> filter(over.cook.4.n) |> nrow() |> toString()` influential points using a different cutoff ($\frac{4}{n}=$ `r toString(round(4/n, 3))`).
-Alternatively, the DFFITS measure shows `r infl_df |> filter(over.dffits) |> nrow() |> toString()` influential points
-(with cutoff $2\sqrt{\frac{p+1}{n}}=$ `r toString(round(2 * sqrt((p+1)/n), 3))`),
-while the DFBETAS measure shows `r infl_df |> filter(over.dfbetas) |> nrow() |> toString()` influential points
-(with cutoff $\frac{2}{\sqrt{n}}=$ `r toString(round(2 / sqrt(n), 3))`).
+Figure \@ref(fig:influential) shows that the dataset has no influential points using Cook's cutoff ($F_{0.5,\ p+1,\ n-p-1} =$ `r round(cook_cutoff, 3)`),
+but has `r infl_df |> filter(over.cook.4.n) |> nrow()` influential points using a different cutoff ($\frac{4}{n}= `r round(4/n, 3)`$).
+Alternatively, the DFFITS measure shows `r infl_df |> filter(over.dffits) |> nrow()` influential points
+(with cutoff $2\sqrt{\frac{p+1}{n}}= `r round(2 * sqrt((p+1)/n), 3)`$),
+while the DFBETAS measure shows $`r infl_df |> filter(over.dfbetas) |> nrow()`$ influential points
+(with cutoff $\frac{2}{\sqrt{n}}= `r round(2 / sqrt(n), 3)`$).
 
 Manually inspecting these points do not reveal any invalid data values for all predictors before or after transformations, so they can't be removed based on invalid data criteria. Because our model contains already transformed variables, we attempt to use interaction terms to eliminate or reduce these observations, with no effect. The plots used to reach this conclusion is omitted from this report for brevity, but the code to generate them can be found inside the R Markdown file next to this section.
 
@@ -436,7 +435,10 @@ plot_grid(plot_pred("tPTS"), plot_pred("tAST"), plot_pred("tFvot"), plot_pred("A
 
 We also attempt to fit a robust regression model (iteratively re-weighted least squares fits, or IWLS) using `rlm()` from `library(MASS)`, but it does not produce any qualitative difference in terms of estimates of coefficients (see Figure \@ref(fig:robust-regression)), nor does it improve residual standard error (IWLS: `r summary(mod.robust)$sigma |> round(3)` vs OLS: `r summary(mod.reduced)$sigma |> round(3)`).
 
-In summary, we opt to leave the influential points and our model as is, since our model has no outliers, very few leverage points, and no influential points (using Cook's cutoff). Given the large size of the dataset ($n=$ `r nrow(nba) |> toString()`) and relatively few number of estimated predictors ($p=$ `r length(mod.reduced$coefficients) |> toString()`), the cutoffs for DFFITS, DFBETAS, and alternate cutoff for Cook's Distance provided in lecture are too small and sensitive to determine useful influential points. Robust regression fits also do not provide any benefits to us, plus we don't know if we meet all the assumptions required by the robust regression method, so we will not use robust regression for our analysis.
+In summary, we opt to leave the influential points and our model as is, since our model has no outliers, very few leverage points, and no influential points (using Cook's cutoff). 
+Given the large size of the dataset ($n= `r nrow(nba)`$) and relatively few number of estimated predictors ($p=$ `r length(mod.reduced$coefficients)`), the cutoffs for DFFITS, DFBETAS, and alternate cutoff for Cook's Distance provided in lecture are too small and sensitive to determine useful influential points. 
+Robust regression fits also do not provide any benefits to us, plus we don't know if we meet all the assumptions required by the robust regression method, so we will not use robust regression for our analysis.
+
 
 ```{r sensitivity-analysis, eval=F}
 sub.nba <- nba |>
@@ -445,11 +447,13 @@ mod.subset <- lm(formula(mod.reduced), data = sub.nba)
 compareCoefs(mod.reduced, mod.subset)
 ```
 
+\newpage
 
 # Final Model Inference and Results
 
 ## Model Summary
-```{r summary-table, results="markup"}
+
+```{r summary-table, results="markup", fig.cap="Fitted regression model summary.", eval=FALSE}
 p_round_fn <- function(num) {
   result <- signif(num, 3) |> as.character()
   return(result)
@@ -459,21 +463,14 @@ round_fn <- function(num) {
   return(result)
 }
 regression_tbl <- tbl_regression(
-  label = list(
-    tPTS = "sqrt(Points)",
-    tAST = "log(Assists)",
-    tFvot = "log(Fan Votes)",
-    Age = "Age",
-    tPos1 = "Position on Court"
-  ),
   mod.additional, intercept = T, pvalue_fun = p_round_fn, estimate_fun = round_fn) |>
   modify_caption("Fitted regression model summary") |>
-  modify_header(label = "**Predictor Variables**", estimate = "**Beta estimate**")
+  modify_header(label = "Predictor variables", estimate = "\\beta")
   #modify_footnote(update = everything() ~ "Predictors values are per game values.") |>
 # show_header_names(regression_tbl)
 regression_tbl <- regression_tbl |>
-  as_kable_extra(booktabs = TRUE, escape = FALSE) |>
-  kable_styling(latex_options = "hold_position")
+  as_kable_extra(format = "latex", booktabs = TRUE, addtl_fmt = F) |>
+  kable_styling(latex_options = c("hold_position"))
 regression_tbl
 ```
 
@@ -486,7 +483,7 @@ measures <- data.frame(
   adjR2 = numeric()
 )
 get_measures <- function(df, model, index) {
-  if(!index %in% df$Model) {
+  if (!index %in% df$Model) {
     df <- df |>
       add_row(
         Model = index,
@@ -511,6 +508,8 @@ measures_tbl <- kable(measures, digits = 3, format = "latex",
   kable_styling()
 measures_tbl
 ```
+
+[placeholder text]
 
 # Discussion and Conclusion
 
