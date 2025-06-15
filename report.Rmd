@@ -342,11 +342,11 @@ therefore we decide to use this as our final model for analysis.
 get_infl_measures <- function(model) {
   p <<- length(model$coefficients)
   n <<- nrow(model$model)
-  result.df <- influence.measures(model)$infmat |> as.data.frame()
-  result.df <- result.df |>
+  result.df <- influence.measures(model)$infmat |>
+    as.data.frame()
+  result.df |>
     mutate(index = as.numeric(row.names(result.df)),
            sresid = rstandard(model))
-  return(result.df)
 }
 graph_obs <- function(df) {
   p1 <- ggplot(df) +
@@ -419,6 +419,7 @@ mod.treated <-
 # lm(update(mod.additional, . ~ . + tPos1:tFvot))
 # lm(update(mod.additional, . ~ . + tPos1:Age))
 lm(update(mod.additional, . ~ . + tPTS:tAST))
+# and etc.
 
 # and repeat the following to check outliers, leverage and influential points
 model_infl <- get_infl_measures(mod.treated)
@@ -429,12 +430,11 @@ graph_inf(model_infl)
 ```{r robust-regression, fig.cap="OLS vs IWSL fits for continuous predictors. Note the minimal difference between the slopes."}
 mod.robust <- rlm(formula(mod.additional), data = nba)
 plot_pred <- function(pred) {
-  result <- ggplot(nba, aes(x = eval(as.name(pred)), y = tSalary)) +
+  ggplot(nba, aes(x = eval(as.name(pred)), y = tSalary)) +
     geom_point() +
     labs(x = pred) +
     geom_smooth(method = "lm") +
     geom_smooth(method = "rlm")
-  return(result)
 }
 plot_grid(plot_pred("tPTS"), plot_pred("tAST"), plot_pred("tFvot"), plot_pred("Age"))
 ```
@@ -495,8 +495,8 @@ get_exp_ci <- function(df) {
              ~ .x |>
                as.numeric() |>
                get_percent_increase_intercept()
-            )
-    )
+             )
+      )
   df |>
     rows_update(pred_exp_ci, by = c("label")) |>
     rows_update(intercept_exp_ci, by = c("label")) |>
