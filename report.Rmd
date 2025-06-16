@@ -52,6 +52,8 @@ Linear regression is an appropriate statistical tool for this analysis because w
 
 By interpreting the linear regression model parameters, it would allow us to understand both player valuation (in terms of their performance) and the patterns that shape the NBA labor market. Could it be, for instance, that certain positions on the court inherently compensated greater, regardless of how successful a player is? Does a player’s earnings better correlate with points or assists than with defensive stats? Such inquiries are important for teams sorting through their salary allocations, players negotiating salaries and those analyzing the fairness of pay scales.
 
+\newpage
+
 # Data Description
 
 ## Data Source
@@ -73,8 +75,7 @@ We're analyzing the response variable, players' Salary (Figure \@ref(fig:vars).A
 ```{r clean}
 nba <- read.csv("nba.csv")
 nba <- nba |>
-  filter(Salary>1e5) # |>
-  # mutate(Salary = Salary / 1e6) # change unit to salary in millions
+  filter(Salary > 1e5)
 write.csv(nba, file = "nba_cleaned.csv")
 ```
 
@@ -89,39 +90,33 @@ nba.hist$Salary <- ggplot(nba) +
   geom_histogram(aes(Salary, y = after_stat(density)), 
                  breaks = get_scott(nba$Salary)) +
   geom_density(aes(Salary)) +
-  # labs(title = "Salary\nDensity Histogram") +
   labs(x = "Salary (USD)")
 
 nba.hist$PTS <- ggplot(nba) +
   geom_histogram(aes(PTS, y = after_stat(density)), 
                  breaks = get_scott(nba$PTS)) +
   geom_density(aes(PTS)) +
-  # labs(title = "Points Per Game\nDensity Histogram") +
   labs(x = "Points per game (PTS)")
 
 nba.hist$PF <- ggplot(nba) +
   geom_histogram(aes(PF, y = after_stat(density)),
                  breaks = get_scott(nba$PF)) +
   geom_density(aes(PF)) +
-  # labs(title = "Personal Fouls per game\nDensity Histogram") +
   labs(x = "Personal Fouls (PF)")
 
 nba.hist$AST <- ggplot(nba) +
   geom_histogram(aes(AST, y = after_stat(density)),
                  breaks = get_scott(nba$AST)) +
   geom_density(aes(AST)) +
-  # labs(title = "Assists per game\nDensity Histogram") +
   labs(x = "Assists (AST)")
 
 nba.hist$STL <- ggplot(nba) +
   geom_histogram(aes(STL, y = after_stat(density)), 
                  breaks = get_scott(nba$STL)) +
   geom_density(aes(STL)) +
-  # labs(title = "Steals per game\nDensity Histogram") +
   labs(x = "Steals per game (STL)")
 
 plot_grid(plotlist = nba.hist, labels = "AUTO")
-
 ```
 
 ## Variable Summaries
@@ -157,6 +152,8 @@ ggplot(nba) +
   geom_boxplot(aes(x = Salary, y = Pos1)) +
   labs(x = "Salary (USD)", y = "Player Position (Pos1)")
 ```
+
+\newpage
 
 # Preliminary Results
 
@@ -220,6 +217,8 @@ In particular, we notice from the estimated model parameters (as seen in Table \
 
 For the categorical variables, we expect the average player salary to increase by about \$2.8 million ($\hat{\beta_5} \approx 2.83$) if they change position from shooting guard or power forward (the reference level, SG+PF) to Centre (C), holding all other predictors constant.
 
+\newpage
+
 # Model Selection
 
 ## Transformations
@@ -264,7 +263,7 @@ log(Salary) = \beta_0 &+ \beta_1\ \sqrt{PTS} + \beta_2\ log(PFoul) + \beta_3\ lo
 \end{equation}
 Its associated diagnostic plots are included below in Figure \@ref(fig:diagnostic-transformed). While violations of non-constant variance, linearity, and normality of errors are still present in the plots, they are significantly improved compared to the original model, and are approximately satisfied to the degree to reasonably allow us to use partial F-tests to eliminate predictors. It is reasonable since F-test is considered *robust* against violations of normality of error and constant variance specifically [@berger_experimental_2018].
 
-```{r diagnostic-transformed, fig.cap = "Model with transformed response and predictors."}
+```{r diagnostic-transformed, fig.cap = "Model with transformed response and predictors.", fig.height=3}
 mod.transformed <- lm(tSalary ~ tPTS + tAST + tSTL + tPF + Pos1, data=nba)
 autoplot(mod.transformed, which = c(1, 2))
 ```
@@ -285,16 +284,15 @@ log(Salary) = \beta_0 &+ \beta_1\ \sqrt{PTS} + \beta_2\ log(AST) \\
 \end{split}
 \end{equation}
 which removes the transformed STL and PF predictors, as well as collapsing SF and PF categorical levels into the same level.
-The choices in these predictors are inspired by the R summary output of the model (which we will omit here),
+The choices in these predictors are inspired by the R summary output of the fitted model (which we will omit here),
 where the p-value for the t-test for each individual predictor's coefficient are high.
 A partial F-test with model \@ref(eq:reduced) as $H_0$,
 and the transformed full model \@ref(eq:transformed) above as $H_1$ gives us a p-value of 0.267,
-which is large enough to indicates that the reduced model should be used,
-even with linear regression assumptions only approximately satisfied.
+which is large enough to indicates that the reduced model should be used.
 
 ## Additional Predictors
 
-```{r var-additional, fig.cap="Distribution of the additional predictors."}
+```{r var-additional, fig.cap="Distribution of the additional predictors.", fig.height=2.5}
 nba <- nba |> mutate(tFvot = log(Fvot))
 var_label(nba$tFvot) <- "$log($Fan Votes$)$"
 nba.hist$tFvot <- ggplot(nba) +
@@ -309,14 +307,18 @@ nba.hist$Age <- ggplot(nba) +
 plot_grid(nba.hist$tFvot, nba.hist$Age, labels = "AUTO")
 ```
 
-```{r diagnostic-additional, fig.cap="Diagnostic of the new fitted model after incorporating additional predictors."}
+```{r diagnostic-additional, fig.cap="Diagnostic of the new fitted model after incorporating additional predictors.", fig.height=2.5}
 mod.additional <- lm(formula = tSalary ~ tPTS + tAST + tFvot + Age + tPos1, data = nba)
 autoplot(mod.additional, which = c(1,2))
 ```
 
+```{r diagnostic-additional-cont, fig.cap="Diagnostic plots, continued.", fig.height=2.5}
+graph_summaries_2(mod.additional)
+```
+
 Because the project requires 5 predictors, we needed to include 2 additional predictors. We propose adding $log(\text{Fan Votes})$ and Age to incorporate popularity and seniority measures.
 
-Figure \@ref(fig:var-additional) shows their distribution, and Figure \@ref(fig:diagnostic-additional) shows that regression assumptions are all still approximately satisfied for the updated Model \@ref(eq:additional), similar to what we saw earlier in Figure \@ref(fig:diagnostic-transformed).
+Figure \@ref(fig:var-additional) shows their distribution, and Figure \@ref(fig:diagnostic-additional)+\@ref(fig:diagnostic-additional-cont) shows that regression assumptions are all still approximately satisfied for the updated Model \@ref(eq:additional), similar to what we saw earlier in Figure \@ref(fig:diagnostic-transformed).
 Specifically, while the blue mean line in Figure \@ref(fig:diagnostic-additional) (left) is not completely straight, it's close enough to a constant of zero to approximately satisfy the assumption of linearity.
 The spread of points around 0 is also approximately the same and therefore approximately satisfy the constant variation of error assumption.
 In Figure \@ref(fig:diagnostic-additional) (right), the distribution of standardized residuals is slightly left-skewed, but it's close enough to normality that most of our analysis (F-tests and confidence intervals) still hold by robustness of ANOVA F-test and central limit theorem (with $n=$ `r nrow(mod.additional$model)`), respectively.
