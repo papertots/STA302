@@ -216,7 +216,7 @@ kable(est_table, format = "latex", booktabs = TRUE, escape = FALSE, caption = "P
 
 Because of the violations mentioned above, the interpretations we can make are limited. With that in mind, these still estimates tell us that player performance is correlated with their salary, which is also affected by their on-court positions.
 
-In particular, we notice from the estimated model parameters (as seen in Table \@ref(tab:prelim-model)) that the predictor, assists (AST), contribute to the average salary by about \$1.2 million ($\hat{\beta_3} \approx `r nba_model[["coefficients"]]["AST"] |> round(-3)`$) for each unit increase while holding all other predictors constant. Personal fouls (PF) has an opposite effect ($\hat{\beta_2} \approx `r nba_model[["coefficients"]]["PF"] |> round(-3)`$).
+In particular, we notice from the estimated model parameters (as seen in Table \@ref(tab:prelim-model)) that the predictor, assists (AST), contributes to the average salary by about \$1.2 million ($\hat{\beta_3} \approx `r nba_model[["coefficients"]]["AST"] |> round(-3)`$) for each unit increase while holding all other predictors constant. The predictor personal fouls (PF) has an opposite effect ($\hat{\beta_2} \approx `r nba_model[["coefficients"]]["PF"] |> round(-3)`$).
 
 For the categorical variables, we expect the average player salary to decrease by about \$4 million ($\hat{\beta_5} \approx `r nba_model[["coefficients"]]["Pos1SG"] |> round(-3)`$) if they change position from center (the reference level, C) to shooting guard (SG), holding all other predictors constant.
 
@@ -275,7 +275,7 @@ autoplot(mod.transformed, which = c(1, 2))
 
 ```{r reduced-model}
 mod.reduced <- lm(tSalary ~ tPTS + tAST + tPos1, data=nba)
-anova(mod.reduced, mod.transformed)
+reduced_anova <- anova(mod.reduced, mod.transformed)
 ```
 
 We propose reduced model
@@ -290,7 +290,7 @@ which removes the transformed STL and PF predictors, as well as collapsing SF an
 The choices in these predictors are inspired by the R summary output of the fitted model (which we will omit here),
 where the p-value for the t-test for each individual predictor's coefficient are high.
 A partial F-test with model \@ref(eq:reduced) as $H_0$,
-and the transformed full model \@ref(eq:transformed) above as $H_1$ gives us a p-value of 0.267,
+and the transformed full model \@ref(eq:transformed) above as $H_1$ gives us a p-value of `r reduced_anova[["Pr(>F)"]][2] |> round(3)`,
 which is large enough to indicates that the reduced model should be used.
 
 ## Additional Predictors
@@ -327,7 +327,7 @@ there are no major regression assumptions violations for the updated Model \@ref
 similar to what we saw earlier in Figure \@ref(fig:diagnostic-transformed).
 Specifically, while the blue mean line in Figure \@ref(fig:diagnostic-additional) (left) is not completely straight and the data plot is not the null plot, it's close enough to a constant of zero to approximately satisfy the assumption of linearity.
 The spread of points around 0 is also approximately the same and therefore approximately satisfy the constant variation of error assumption.
-In Figure \@ref(fig:diagnostic-additional) (right), the distribution of standardized residuals is slightly left-skewed, but it's close enough to normality that most of our analysis (F-tests and confidence intervals) still hold by robustness of ANOVA F-test and central limit theorem (with $n=$ `r nrow(mod.additional$model)`), respectively.
+In Figure \@ref(fig:diagnostic-additional) (right), the distribution of standardized residuals is slightly left-skewed, but it's close enough to normality that most of our analysis (F-tests and confidence intervals) still hold by robustness of ANOVA F-test [@berger_experimental_2018] and central limit theorem (with $n=$ `r nrow(mod.additional$model)`), respectively.
 \begin{equation}
 \begin{split}
 log(Salary) = \beta_0 &+ \beta_1\ \sqrt{PTS} + \beta_2\ log(AST) + \beta_3 log(FVot) \\
@@ -341,7 +341,7 @@ anova(mod.reduced, mod.additional)
 vif(mod.additional)
 ```
 
-A partial F test gives us a very significant p-value of $2.2\times 10^{-16}$, while each estimated coefficient has a variance inflation factor $<5$,
+A partial F test gives us a very significant p-value of $2.2\times 10^{-16}$, while each estimated coefficient has a variance inflation factor $<5$ (see Table \@ref(tab:summary-table)),
 therefore we decide to use this as our final model for analysis.
 
 ## Problematic Observations
@@ -416,7 +416,7 @@ Alternatively, the DFFITS measure shows `r infl_df |> filter(over.dffits) |> nro
 while the DFBETAS measure shows $`r infl_df |> filter(over.dfbetas) |> nrow()`$ influential points
 (with cutoff $\frac{2}{\sqrt{n}}= `r round(2 / sqrt(n), 3)`$).
 
-Manually inspecting these points do not reveal any invalid data values for all predictors before or after transformations, so they can't be removed based on invalid data criteria. Because our model contains already transformed variables, we attempt to use interaction terms to eliminate or reduce these observations, with no effect. The plots used to reach this conclusion is omitted from this report for brevity, but the code to generate them can be found inside the R Markdown file next to this section.
+Manually inspecting these points do not reveal any invalid data values for all predictors before or after transformations, so they can't be removed based on the invalid data criterion. Because our model contains already transformed variables, we attempt to use interaction terms to eliminate or reduce these observations, with no effect. The plots used to reach this conclusion is omitted from this report for brevity, but the code to generate them can be found inside the R Markdown file next to this section.
 
 ```{r influential-treatment, eval=F}
 # we can uncomment each of the following treated models with different
@@ -427,15 +427,15 @@ mod.treated <-
 # lm(update(mod.additional, . ~ . + tPos1:tFvot))
 # lm(update(mod.additional, . ~ . + tPos1:Age))
 lm(update(mod.additional, . ~ . + tPTS:tAST))
-# and etc.
+# and etc., omitted
 
-# and repeat the following to check outliers, leverage and influential points
+# repeat the following to check outliers, leverage and influential points
 model_infl <- get_infl_measures(mod.treated)
 graph_obs(model_infl)
 graph_inf(model_infl)
 ```
 
-```{r robust-regression, fig.cap="OLS vs IWSL fits for continuous predictors. Note the minimal difference between the slopes."}
+```{r robust-regression, fig.cap="OLS vs IWSL fits for continuous predictors. 't' in axis label represents denotes that the variable has been transformed. Note the minimal difference between the slopes of the different regression estimation methods."}
 mod.robust <- rlm(formula(mod.additional), data = nba)
 plot_pred <- function(pred) {
   ggplot(nba, aes(x = eval(as.name(pred)), y = tSalary)) +
@@ -447,7 +447,7 @@ plot_pred <- function(pred) {
 plot_grid(plot_pred("tPTS"), plot_pred("tAST"), plot_pred("tFvot"), plot_pred("Age"))
 ```
 
-We also attempt to fit a robust regression model (iteratively re-weighted least squares fits, or IWLS) using `rlm()` from `library(MASS)`, but it does not produce any qualitative difference in terms of estimates of coefficients (see Figure \@ref(fig:robust-regression)), nor does it improve residual standard error (IWLS: `r summary(mod.robust)$sigma |> round(3)` vs OLS: `r summary(mod.reduced)$sigma |> round(3)`).
+We also attempt to fit a robust regression model (iteratively re-weighted least squares fits, or IWLS) using `rlm()` from `library(MASS)`, but it does not produce any qualitative difference in terms of estimates of coefficients (see Figure \@ref(fig:robust-regression)), nor does it substantially improve residual standard error (IWLS: `r summary(mod.robust)$sigma |> round(3)` vs OLS: `r summary(mod.reduced)$sigma |> round(3)`).
 
 In summary, we opt to leave the influential points and our model as is, since our model has no outliers, very few leverage points, and no influential points (using Cook's cutoff). 
 Given the large size of the dataset ($n= `r nrow(nba)`$) and relatively few number of estimated predictors ($p=$ `r length(mod.reduced$coefficients)`), the cutoffs for DFFITS, DFBETAS, and alternate cutoff for Cook's Distance provided in lecture are too small and sensitive to determine useful influential points. 
@@ -545,9 +545,8 @@ regression_tbl <- tbl_regression(mod.additional, intercept = T,
 # show_header_names(regression_tbl)
 regression_tbl |>
   as_kable_extra(format = "latex", booktabs = TRUE, addtl_fmt = F) |>
-  kable_styling()
+  kable_styling(latex_options = "hold_position")
 ```
-
 Table \@ref(tab:summary-table) back-transformations are performed as follows:
 since one-unit increase in the transformed predictors corresponds to an expected $\hat{\beta_i}$ unit increase in $log($`Salary`$)$,
 holding all other predictors constant.
@@ -562,7 +561,6 @@ This interpretation is used for the following analysis, unless otherwise noted.
 b_hat <- regression_tbl$table_body$exp_estimate
 names(b_hat) <- regression_tbl$table_body$label |> names()
 ```
-
 Our final regression model \@ref(eq:additional) examines how performance and demographic factors predict log-transformed NBA player salaries. The predictors include: points per game (transformed by square root), assists per game (log-transformed), fan votes (log-transformed), age, and primary position (categorical with the forwards as reference).
 
 $\sqrt{\text{Points}}$ is the most influential predictor. A one-unit increase in $\sqrt{\text{Points}}$ is associated with an expected average $\phantom{}`r b_hat["tPTS"]`$ increase in salary (refer to Table \@ref(tab:summary-table) for the 95% confidence interval for this and all following estimates). This makes intuitive sense: scoring is a primary driver of player valuation and contract negotiation in the NBA, as it's the ultimate objective of the game: to outscore your opponent. A team needs to accumulate more points than the opposing team to win, making scoring the driving force behind all offensive strategies.
@@ -584,13 +582,15 @@ Overall, our results highlight that performance statistics, particularly scoring
 ## Model Performance Assessment
 
 ```{r model-measures, results="markup"}
-measures <- data.frame(
-  Model = integer(),
-  AIC = numeric(),
-  BIC = numeric(),
-  R2 = numeric(),
-  adjR2 = numeric()
-)
+setup_measures <- function() {
+  data.frame(
+    Model = integer(),
+    AIC = numeric(),
+    BIC = numeric(),
+    R2 = numeric(),
+    adjR2 = numeric()
+  )
+}
 get_measures <- function(df, model, index) {
   if (!index %in% df$Model) {
     df |>
@@ -606,15 +606,50 @@ get_measures <- function(df, model, index) {
     df
   }
 }
+measures <- setup_measures()
 measures <- get_measures(measures, nba_model, 1)
 measures <- get_measures(measures, mod.transformed, 2)
 measures <- get_measures(measures, mod.reduced, 3)
 measures <- get_measures(measures, mod.additional, 4)
-measures |> kable(digits = 3, booktabs = TRUE, format = "latex", escape = FALSE,
-                  caption = "Model performance metrics.",
+
+# backwards elimination using our model as the full model and justify not eliminating any variables
+elim <- setup_measures()
+elim <- get_measures(elim, mod.additional, 4)
+elim <- get_measures(elim,
+                     lm(tSalary ~ tAST + tFvot + Age + tPos1,
+                        data = nba), 5)
+elim <- get_measures(elim,
+                     lm(tSalary ~ tPTS + tFvot + Age + tPos1,
+                        data = nba), 6)
+elim <- get_measures(elim,
+                     lm(tSalary ~ tPTS + tAST + Age + tPos1,
+                        data = nba), 7)
+elim <- get_measures(elim,
+                     lm(tSalary ~ tPTS + tAST + tFvot + tPos1,
+                        data = nba), 8)
+elim <- get_measures(elim,
+                     lm(tSalary ~ tPTS + tAST + tFvot + Age,
+                        data = nba), 9)
+list(measures, elim) |> kable(digits = 3, booktabs = TRUE, format = "latex", escape = FALSE,
+                  caption = "Left: Previous model performance metrics.\nRight: Backwards elimination related performance metrics.",
                   col.names = c("Model", "AIC", "BIC", "$R^2$", "$R^2_{adj}$")) |>
-  kable_styling()
+  kable_styling(latex_options = "hold_position")
 ```
+
+In Table \@ref(tab:model-measures) (Left), we provide several key metrics, including Akaike Information Criterion (AIC), Bayesian Information Criterion (BIC), $R^2$, and $R^2_{adj}$ for our final model as well as each of our previous models.
+Model 1 served as our initial model, Model 2 applied transformations to address violations of linear assumptions, Model 3 retained much of the characteristics of Model 2 without redundant predictors, and Model 4 is our final and strongest performing model.
+
+When constructing Model 4, our goal was to achieve the best performance across all metrics, i.e., minimize AIC and BIC while maximizing $R^2_{adj}$.
+The $R^2$ values indicate how well each model explains the variability in player salaries, and we compare model explanatory performance by using $R^2_{adj}$.
+Model 4 outperforms the other 3 models with this metric, with $R^2_{adj}$ = 0.517.
+The AIC and BIC values in Table 3 indicate that Model 4 also offers clear advantages in model fit when compared to previous model iterations.
+It has the lowest AIC at 2951.74, when compared to all other models.
+The BIC values, which more strongly penalize model complexity than AIC, also identify Model 4 as the best performing, with the lowest BIC at 2997.97. So Model 4 best explains the variation of Salary while remaining the least complex (i.e. the most efficient) model.
+
+Table \@ref(tab:model-measures) (Right) justifies the lack of variable removal from our final model using performance metrics.
+Models 5-9 are Model 4 with each of the 5 predictors removed in order.
+Similar to previous analysis, Model 4 is the best model in terms of $R^2_{adj}$ and AIC, and second best in terms of BIC.
+Therefore, Model 4 remains as our final model.
 
 # Discussion and Conclusion
 
