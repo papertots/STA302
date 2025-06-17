@@ -318,8 +318,11 @@ graph_summaries_2(mod.additional)
 
 Because the project requires 5 predictors, we needed to include 2 additional predictors. We propose adding $log(\text{Fan Votes})$ and Age to incorporate popularity and seniority measures.
 
-Figure \@ref(fig:var-additional) shows their distribution, and Figure \@ref(fig:diagnostic-additional)+\@ref(fig:diagnostic-additional-cont) shows that regression assumptions are all still approximately satisfied for the updated Model \@ref(eq:additional), similar to what we saw earlier in Figure \@ref(fig:diagnostic-transformed).
-Specifically, while the blue mean line in Figure \@ref(fig:diagnostic-additional) (left) is not completely straight, it's close enough to a constant of zero to approximately satisfy the assumption of linearity.
+Figure \@ref(fig:var-additional) shows their distribution,
+and Figure \@ref(fig:diagnostic-additional)+\@ref(fig:diagnostic-additional-cont) shows that
+there are no major regression assumptions violations for the updated Model \@ref(eq:additional),
+similar to what we saw earlier in Figure \@ref(fig:diagnostic-transformed).
+Specifically, while the blue mean line in Figure \@ref(fig:diagnostic-additional) (left) is not completely straight and the data plot is not the null plot, it's close enough to a constant of zero to approximately satisfy the assumption of linearity.
 The spread of points around 0 is also approximately the same and therefore approximately satisfy the constant variation of error assumption.
 In Figure \@ref(fig:diagnostic-additional) (right), the distribution of standardized residuals is slightly left-skewed, but it's close enough to normality that most of our analysis (F-tests and confidence intervals) still hold by robustness of ANOVA F-test and central limit theorem (with $n=$ `r nrow(mod.additional$model)`), respectively.
 \begin{equation}
@@ -546,7 +549,7 @@ Table \@ref(tab:summary-table) back-transformations are performed as follows:
 since one-unit increase in the transformed predictors corresponds to an expected $\hat{\beta_i}$ unit increase in $log($`Salary`$)$,
 holding all other predictors constant.
 In other words, it's also associated with an expected increase of `Salary` by a factor of $e^{\hat{\beta_i}}$,
-i.e. an increase of $(e^{\hat{\beta_i}} - 1)100\%$.
+i.e. an increase of $(e^{\hat{\beta_i}} - 1)100\%$ [@ford_interpreting_2018].
 End-points of the (95%) confidence interval is transformed and interpreted similarly, that we are 95% confident that the true expected average percentage increase lies within the interval.
 This interpretation is used for the following analysis, unless otherwise noted.
 
