@@ -48,8 +48,8 @@ Physicality, popularity, and basketball IQ meet in the NBA. A player’s salary 
 This project aims to understand the relationship between NBA player salaries and a player’s pure, on-court contributions, using statistical techniques to identify the main factors behind any changes in player pay.
 
 While the common assumption is that performance drives earnings, modern professional sports organizations now operate at the intersection of entertainment and profit. 
-This means that, along with more obvious statistics like scoring, playmaking, and defense, team role, fame, and how much a player is worth are also taken into account. 
-As a result, our central research question arises as such: "To what extent can NBA player salary be explained by on-court performance and position? What is the relationship between salary, and statistics such as points per game, fouls per game, assists per game, steals per game, and position?"
+This means that, along with more obvious statistics like scoring, playmaking, and defense, factors such as team role and fame are also taken into account.
+As a result, our central research question arises as such: *"To what extent can NBA player salary be explained by on-court performance and position?"* What is the relationship between salary, and statistics such as points per game, fouls per game, assists per game, steals per game, and position?"
 
 Linear regression is an appropriate statistical tool for this analysis because we are interested in estimating the average change in salary associated with unit changes in predictor variables (points per game, assists). The method allows us to quantify the effect of each variable while holding others constant. Additionally, categorical predictors such as a player's main position can be incorporated, enabling the model to account for role-based differences in compensation.
 
@@ -70,10 +70,10 @@ In the model, we use Salary (USD millions) as the response variable to investiga
 We're analyzing the response variable, players' Salary (Figure \@ref(fig:vars).A) with these predictors:
 
 - Points Per Game (PTS): Measures a player's scoring ability and offensive productivity (Figure \@ref(fig:vars).B)
-- Personal Fouls Per Game (PF): Reflective of a player’s defensive discipline and quality (Figure \@ref(fig:vars).C)
+- Personal Fouls Per Game (PFoul): Reflective of a player’s defensive discipline and quality (Figure \@ref(fig:vars).C)
 - Assists Per Game (AST): Reflects offensive role and playmaking contributions (Figure \@ref(fig:vars).D)
 - Steals Per Game (STL): Indicator of defensive activity and quality (Figure \@ref(fig:vars).E)
-- Main Position (Pos1: [PG, SG, SF, PF, C]): A categorical variable that reflects role on court
+- Main Position (Pos1: [PG: point guard, SG: shooting guard, SF: small forward, PF: power forward, C: center]): A categorical variable that reflects role on court
 
 ```{r clean}
 nba <- read.csv("nba.csv")
@@ -105,7 +105,7 @@ nba.hist$PF <- ggplot(nba) +
   geom_histogram(aes(PF, y = after_stat(density)),
                  breaks = get_scott(nba$PF)) +
   geom_density(aes(PF)) +
-  labs(x = "Personal Fouls (PF)")
+  labs(x = "Personal Fouls (PFoul)")
 
 nba.hist$AST <- ggplot(nba) +
   geom_histogram(aes(AST, y = after_stat(density)),
@@ -145,7 +145,7 @@ We have filtered out players with missing salary information.
 
 Final row of Figure \@ref(fig:scatter-matrix) shows that the response variable (Salary) is roughly linear in the 4 continuous predictor variables. We theorize that the model, Equation \@ref(eq:lm), would be a good linear approximation.
 \begin{equation}
-Salary = \beta_0 + \beta_1\ PTS + \beta_2\ PF + \beta_3\ AST + \beta_4\ STL + \beta_5\ I(PF) + \beta_6\ I(PG) + \beta_7\ I(SF) + \beta_8\ I(SG) + \varepsilon
+Salary = \beta_0 + \beta_1\ PTS + \beta_2\ PFoul + \beta_3\ AST + \beta_4\ STL + \beta_5\ I(PForward) + \beta_6\ I(PG) + \beta_7\ I(SF) + \beta_8\ I(SG) + \varepsilon
 (\#eq:lm)
 \end{equation}
 
