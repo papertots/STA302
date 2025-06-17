@@ -735,30 +735,38 @@ NBA salaries are frequently shaped by collective bargaining agreements, which en
 These mechanisms can lead to significant salary increases not directly tied to year-over-year performance changes.
 Including a categorical variable for contract type or years in the league would help account for these structured salary jumps, instead of using restricted cubic splines for the age predictor.
 
+\newpage
+
 # Author Contributions
+Contributions of each group member is detailed as follows:
 
 Yizhe Zhao
 
-- Rmd code used to analyze data and generate the plots, as well as the formatting for outputting the final report pdf from Rmd
-- Preliminary model results section of the report
+- R code used to analyze data and generate the plots and tables, as well as the R markdown formatting (including citations) for outputting the final report pdf from Rmd
+- Preliminary model results (Section \@ref(preliminary-results)) and Model Selection (Section \@ref(model-selection)) of the report
 
 Shi Wang
 
 - Formatting, rewriting, citations, and general proofreading of the report
+- Assisted in model selection and assumption verification
+- Co-wrote Section \@ref(model-performance-assessment)
 
 Valentyn Lytvyniuk
 
-- Proofreading, organizing in-person meeting, co-writing introduction and data description, collaborating on the data set and response/predictor variable selection
+- Proofreading, organizing in-person meeting, co-writing introduction and data description, collaborating on the data set and response/predictor variable selection, collaborating on transformation selection, interpretation of transformation, and co-writing conclusion section
 
 Cyre Beroncal
 
 - Wrote initial drafts of introduction and data description sections, proposed research question
-- Collaborated in selecting and interpreting initial variables used in relation to regression outputs
+- Calculated back-transformations (Section \@ref(model-summary))
+- Wrote interpretations of all coefficients in the context of the problem (Section \@ref(coefficient-interpretations))
+- Wrote initial draft of Recommendations for Future Research (Section \@ref(recommendations-for-future-research)), providing suggestions in contract interaction and NBA contextualization.
 
 Jack Zhang
 
 - Assisted in selecting and evaluating potential datasets for analysis
 - Wrote the notes in the Group Teamwork Agreement Doc
 - Proofreading to ensure clarity and accuracy
+- Co-wrote Section \@ref(model-performance-assessment). Integrated and helped write both sections of the conclusion (\@ref(conclusions-and-key-findings), \@ref(recommendations-for-future-research))
 
 # Bibliography
