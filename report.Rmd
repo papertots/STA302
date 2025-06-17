@@ -216,9 +216,9 @@ kable(est_table, format = "latex", booktabs = TRUE, escape = FALSE, caption = "P
 
 Because of the violations mentioned above, the interpretations we can make are limited. With that in mind, these still estimates tell us that player performance is correlated with their salary, which is also affected by their on-court positions.
 
-In particular, we notice from the estimated model parameters (as seen in Table \@ref(tab:prelim-model)) that the predictor, assists (AST), contribute to the average salary by about \$1.1 million ($\hat{\beta_3} \approx 1.09$) for each unit increase while holding all other predictors constant. Personal fouls (PF) has an opposite effect ($\hat{\beta_2} \approx -0.90$).
+In particular, we notice from the estimated model parameters (as seen in Table \@ref(tab:prelim-model)) that the predictor, assists (AST), contribute to the average salary by about \$1.2 million ($\hat{\beta_3} \approx `r nba_model[["coefficients"]]["AST"] |> round(-3)`$) for each unit increase while holding all other predictors constant. Personal fouls (PF) has an opposite effect ($\hat{\beta_2} \approx `r nba_model[["coefficients"]]["PF"] |> round(-3)`$).
 
-For the categorical variables, we expect the average player salary to increase by about \$2.8 million ($\hat{\beta_5} \approx 2.83$) if they change position from shooting guard or power forward (the reference level, SG+PF) to Centre (C), holding all other predictors constant.
+For the categorical variables, we expect the average player salary to decrease by about \$4 million ($\hat{\beta_5} \approx `r nba_model[["coefficients"]]["Pos1SG"] |> round(-3)`$) if they change position from center (the reference level, C) to shooting guard (SG), holding all other predictors constant.
 
 \newpage
 
@@ -618,7 +618,7 @@ measures |> kable(digits = 3, booktabs = TRUE, format = "latex", escape = FALSE,
 
 # Discussion and Conclusion
 
-## Key Findings and Suggestions
+## Conclusions and Key Findings
 
 ```{r key-findings}
 p_value <- regression_tbl$table_body$p.value
@@ -633,7 +633,7 @@ with a very significant p-value associated with each estimate (see Table \@ref(t
 Player popularity (as measured by log of fan votes) also shows a small positive association with salary,
 but the p-value for the estimate is barely significant at $p = `r p_value["tFvot"] |> round(3)`$.
 Furthermore, playing positions can affect players' salaries in varying ways,
-with centers generally earning more (insert beta figure here) and guards earning less (insert beta figures here) compared to forwards, our reference group.
+with centers generally earning more ($`r b_hat["tPos1Center"]`$) and guards earning less ($`r b_hat["tPos1Shooting Guard"] |> gsub("-", "", x = _)`$ for shooting guards and $`r b_hat["tPos1Point Guard"] |> gsub("-", "", x = _)`$ for point guards) compared to forwards, our reference group.
 
 On the other hand, personal fouls (PF) and steals (STL) are predictors that are highly correlated with others,
 making them redundant and leading to their exclusion.
