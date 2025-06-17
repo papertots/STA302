@@ -9,6 +9,9 @@ bibliography: ["citations.bib"]
 biblio-style: "apa"
 csl: "apa-no-ampersand"
 link-citations: true
+header-includes:
+  - \setlength{\parindent}{1em}
+  - \setlength{\parskip}{0em}
 ---
 
 ```{r setup, message=FALSE, results="hide", include=FALSE}
@@ -50,7 +53,7 @@ As a result, our central research question arises as such: "To what extent can N
 
 Linear regression is an appropriate statistical tool for this analysis because we are interested in estimating the average change in salary associated with unit changes in predictor variables (points per game, assists). The method allows us to quantify the effect of each variable while holding others constant. Additionally, categorical predictors such as a player's main position can be incorporated, enabling the model to account for role-based differences in compensation.
 
-By interpreting the linear regression model parameters, it would allow us to understand both player valuation (in terms of their performance) and the patterns that shape the NBA labor market. Could it be, for instance, that certain positions on the court inherently compensated greater, regardless of how successful a player is? Does a player’s earnings better correlate with points or assists than with defensive stats? Such inquiries are important for teams sorting through their salary allocations, players negotiating salaries and those analyzing the fairness of pay scales.
+By interpreting the linear regression model parameters, it would allow us to understand both player valuation (in terms of their performance) and the patterns that shape the NBA labour market. Could it be, for instance, that certain positions on the court inherently compensated greater, regardless of how successful a player is? Does a player’s earnings better correlate with points or assists than with defensive stats? Such inquiries are important for teams sorting through their salary allocations, players negotiating salaries and those analyzing the fairness of pay scales.
 
 \newpage
 
@@ -568,7 +571,7 @@ $log(\text{AST})$ is also highly significant, where each one-unit increase in th
 
 $log(\text{Fan Votes})$ has a smaller but still significant impact. A one-unit increase corresponds to a $\phantom{}`r b_hat["tFvot"]`$ increase in salary. This supports the idea that player popularity and marketability contribute to pay. While not as impactful as on-court performance, this reflects the entertainment aspect of the league: fan-favorite players are more likely to bring media attention, merchandise sales, and brand value to a franchise.
 
-The coefficient for Age suggesting that for each additional year of age, salary increases by approximately $\phantom{}`r b_hat["Age"]`$. [**We could move this part to section 6 to talk about how we can improve our analysis with restricted cubic splines.**] However, this linear model cannot capture the full parabolic nature of career earnings in the NBA. Typically, players receive large raises after their rookie-scale contracts (usually after 3–4 years in the league), leading to a steep rise in earnings through their prime (roughly ages 25–30). After that point, declining athletic performance, injuries, and team roster priorities may reduce earning power, especially for non-star players.
+The coefficient for Age suggesting that for each additional year of age, salary increases by approximately $\phantom{}`r b_hat["Age"]`$. However, there are shortcomings to interpreting this coefficient estimate directly due to the complexity of age and seniority in the NBA leagues. See Section \@ref(recommendations-for-future-research) for a detailed discussion.
 
 Our model uses SF/PF (Forwards) as the reference level, but it would be inappropriate to interpreted the intercept estimate directly, since player age is a predictor and should not take a value of 0.
 Center (C) players are expected to earn $\phantom{}`r b_hat["tPos1Center"]`$ more on average compared to the forwards, point guards (PG) earn $\phantom{}`r b_hat["tPos1Point Guard"] |> gsub("-", "", x = _)`$ less,
@@ -614,6 +617,88 @@ measures |> kable(digits = 3, booktabs = TRUE, format = "latex", escape = FALSE,
 ```
 
 # Discussion and Conclusion
+
+## Key Findings and Suggestions
+
+```{r key-findings}
+p_value <- regression_tbl$table_body$p.value
+names(p_value) <- regression_tbl$table_body$label |> names()
+```
+
+Our analysis aimed to address the question "To what extent can NBA player salary be explained by on-court performance and position?”
+We have established that there exists a strong positive correlation between NBA players’ salaries and their on-court performance,
+specifically points per game and assists per game,
+as seen in the high model coefficient estimates for the transformed predictors,
+with a very significant p-value associated with each estimate (see Table \@ref(tab:summary-table)).
+Player popularity (as measured by log of fan votes) also shows a small positive association with salary,
+but the p-value for the estimate is barely significant at $p = `r p_value["tFvot"] |> round(3)`$.
+Furthermore, playing positions can affect players' salaries in varying ways,
+with centers generally earning more (insert beta figure here) and guards earning less (insert beta figures here) compared to forwards, our reference group.
+
+On the other hand, personal fouls (PF) and steals (STL) are predictors that are highly correlated with others,
+making them redundant and leading to their exclusion.
+Therefore, we don’t know to what extent personal fouls and steals contribute (positively or negatively) to a player’s salary.
+
+In brief, according to our model,
+the primary way for a player to improve their salary would be to improve their on-court performance in terms of their scoring and playmaking ability.
+Players aiming to be more popular may see an increase to their salary as well,
+but the extent of the improvement may be minor.
+Additionally, players can expect an average increase in salary as they age,
+or as they switch from more defensive to more offensive roles.
+
+## Recommendations for Future Research
+
+While the factors that we have included in our analysis affect players’ salaries,
+they do not fully explain how the players are reimbursed.
+Using the R-squared measure, we see that our model explains 52% of the variation in log(Salary), which leaves 48% unexplained.
+
+
+For example, our model assumes that player age and $log(\text{Salary})$ are approximately linearly related for the simplicity of the model.
+As seen in Section \@ref(additional-predictors),
+the final model was still approximately linear,
+so it was a reasonable simplification.
+However, the full nature of age and career earnings in the NBA is more complex.
+Typically, rookie players have a capped salary when they are 22 years and younger,
+as seen in Figure \@ref(fig:salary-age).
+This is due to their rookie-scale contracts signed when they first enter the league,
+which usually expire after 3-4 years.
+Afterwards, players receive large raises,
+leading to a steep rise in earnings through their prime (roughly ages 25–30).
+After that point, declining athletic performance, injuries, and team roster priorities may reduce earning power, especially for non-star players.
+
+```{r salary-age, fig.cap="Scatterplots of Salary and log-Salary vs. Age.", fig.height=2.5}
+plot_grid(
+  ggplot(nba) +
+    geom_point(aes(y = Salary, x = Age)) +
+    labs(y = "Salary (USD)"),
+  ggplot(nba) +
+    geom_point(aes(y = tSalary, x = Age)) +
+    labs(y = "log-Salary"))
+```
+
+Due to this complex interaction,
+a better future analysis would be to use a restricted (natural) cubic spline with 1 knot for the age predictor,
+or use LASSO regression to select an optimal number of knots [@nugent_very_2019].
+This approach allows the model to flexibly fit separate cubic trends across distinct age ranges while maintaining smooth transitions between them to promote a better model fit.
+
+Conversely, age may not be the most precise predictor,
+as players enter the league at varying ages.
+The earliest a player can be drafted into play is at the age of 19,
+although many players spend additional years in college or develop in international leagues before making the leap to the NBA.
+Over time, players accumulate skills, experience, and recognition through professional play.
+A player’s popularity and market value are built directly over seasons played rather than how old they are.
+Furthermore, NBA contracts are heavily tied to years in the league.
+Therefore, “years in league” or “career experience” would serve as a more direct and accurate measure than chronological age.
+
+The accuracy and explanatory impact of our model could also be substantially improved by incorporating key off-court and contract-related variables not present in our dataset that influence player salaries in the NBA.
+For instance, while our model primarily uses on-court performance metrics (points, assists, etc.), NBA player compensation is often influenced by factors such as marketability, fan engagement, and franchise value contribution.
+Including variables like social media following, merchandise/jersey sales, or All-Star voting totals would provide measurable indicators of a player’s public profile.
+These aspects are particularly relevant in a league where high-visibility players can drive significant revenue beyond the court.
+
+Contract structure is another critical missing piece.
+NBA salaries are frequently shaped by collective bargaining agreements, which enforce rookie-scale contracts, max contract ceilings, and special designations like veteran extensions or supermax eligibility.
+These mechanisms can lead to significant salary increases not directly tied to year-over-year performance changes.
+Including a categorical variable for contract type or years in the league would help account for these structured salary jumps, instead of using restricted cubic splines for the age predictor.
 
 # Author Contributions
 
