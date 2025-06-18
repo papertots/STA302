@@ -36,7 +36,8 @@ library("bookdown")
 library("dplyr")
 library("patchwork")
 ggplot2::theme_set(theme_minimal())
-ggplot2::theme_update(plot.title = element_text(hjust = 0.5, size = 11))
+ggplot2::theme_update(plot.title = element_text(hjust = 0.5, size = 11),
+                      axis.title = element_text(hjust = 0.5, size = 11))
 ```
 
 \newpage
@@ -49,11 +50,11 @@ This project aims to understand the relationship between NBA player salaries and
 
 While the common assumption is that performance drives earnings, modern professional sports organizations now operate at the intersection of entertainment and profit. 
 This means that, along with more obvious statistics like scoring, playmaking, and defense, factors such as team role and fame are also taken into account.
-As a result, our central research question arises as such: *"To what extent can NBA player salary be explained by on-court performance and position?"* What is the relationship between salary, and statistics such as points per game, fouls per game, assists per game, steals per game, and position?"
+As a result, our central research question arises as such: *"To what extent can NBA player salary be explained by on-court performance and position?"* What is the relationship between salary, and statistics such as points per game, fouls per game, assists per game, steals per game, and position?
 
-Linear regression is an appropriate statistical tool for this analysis because we are interested in estimating the average change in salary associated with unit changes in predictor variables (points per game, assists). The method allows us to quantify the effect of each variable while holding others constant. Additionally, categorical predictors such as a player's main position can be incorporated, enabling the model to account for role-based differences in compensation.
+Linear regression is an appropriate statistical tool for this analysis because we are interested in estimating the average change in salary associated with unit changes in predictor variables (such as points per game and assists). The method allows us to quantify the effect of each variable while holding others constant. Additionally, categorical predictors such as a player's main position can be incorporated, enabling the model to account for role-based differences in compensation.
 
-By interpreting the linear regression model parameters, it would allow us to understand both player valuation (in terms of their performance) and the patterns that shape the NBA labour market. Could it be, for instance, that certain positions on the court inherently compensated greater, regardless of how successful a player is? Does a player’s earnings better correlate with points or assists than with defensive stats? Such inquiries are important for teams sorting through their salary allocations, players negotiating salaries and those analyzing the fairness of pay scales.
+By interpreting the linear regression model parameters, it would allow us to understand both player valuation (in terms of their performance) and the patterns that shape the NBA labour market. Could it be, for instance, that certain positions on the court inherently compensated greater, regardless of how successful a player is? Does a player’s earnings better correlate with points or assists than with defensive stats? Such inquiries are important for teams sorting through their salary allocations, players negotiating salaries, and those analyzing the fairness of pay scales.
 
 \newpage
 
@@ -63,7 +64,7 @@ By interpreting the linear regression model parameters, it would allow us to und
 
 The dataset analyzed here was constructed by Davide Ratto [@ratto_nba_2019], combining statistics from several sources available through a Milan-based university project. Data from websites basketball-reference.com [@noauthor_basketball_nodate], hoopshype.com [@hoopshype_hoopshype_nodate], and a Kaggle repository [@gift_social_2017] were combined to build this dataset. The objective of the initial study was to create forecasts for player selection to the All-Star Game using a combination of data on performance and popularity. Only the most recent season’s data was kept for each player to preserve a sample that operators of the datasets consider independent.
 
-In the model, we use Salary (USD millions) as the response variable to investigate which aspects of player performance and role most correlate to NBA compensation, since it's a continuous and non-negative variable that reflects NBA compensation, making it suitable in linear regression.
+In the model, we use Salary (USD) as the response variable to investigate which aspects of player performance and role most correlate to player valuation. Since `Salary` is a continuous and non-negative variable that reflects NBA compensation, it is suitable for linear regression.
 
 ## Variables
 
@@ -73,7 +74,7 @@ We're analyzing the response variable, players' Salary (Figure \@ref(fig:vars).A
 - Personal Fouls Per Game (PFoul): Reflective of a player’s defensive discipline and quality (Figure \@ref(fig:vars).C)
 - Assists Per Game (AST): Reflects offensive role and playmaking contributions (Figure \@ref(fig:vars).D)
 - Steals Per Game (STL): Indicator of defensive activity and quality (Figure \@ref(fig:vars).E)
-- Main Position (Pos1: [PG: point guard, SG: shooting guard, SF: small forward, PF: power forward, C: center]): A categorical variable that reflects role on court
+- Main Position (Pos1: [PG: point guard, SG: shooting guard, SF: small forward, PForward: power forward, C: center]): A categorical variable that reflects role on court.
 
 ```{r clean}
 nba <- read.csv("nba.csv")
@@ -142,15 +143,17 @@ ggpairs(nba,
 ```
 
 We have filtered out players with missing salary information.
-
-Final row of Figure \@ref(fig:scatter-matrix) shows that the response variable (Salary) is roughly linear in the 4 continuous predictor variables. We theorize that the model, Equation \@ref(eq:lm), would be a good linear approximation.
+The final row of Figure \@ref(fig:scatter-matrix) shows that the response variable (Salary) is roughly linear in the 4 continuous predictor variables. We theorize that Model \@ref(eq:lm) would be a good linear approximation.
 \begin{equation}
-Salary = \beta_0 + \beta_1\ PTS + \beta_2\ PFoul + \beta_3\ AST + \beta_4\ STL + \beta_5\ I(PForward) + \beta_6\ I(PG) + \beta_7\ I(SF) + \beta_8\ I(SG) + \varepsilon
+\begin{split}
+Salary &= \beta_0 + \beta_1\ PTS + \beta_2\ PFoul + \beta_3\ AST + \beta_4\ STL\\
+&+ \beta_5\ I(PForward) + \beta_6\ I(PG) + \beta_7\ I(SF) + \beta_8\ I(SG) + \varepsilon
 (\#eq:lm)
+\end{split}
 \end{equation}
 
 
-```{r box-plots, fig.cap="Box Plots of Salary against categorical dummy variables", fig.height=3}
+```{r box-plots, fig.cap="Box plots of Salary against categorical dummy variables", fig.height=3}
 ggplot(nba) +
   geom_boxplot(aes(x = Salary, y = Pos1)) +
   labs(x = "Salary (USD)", y = "Player Position (Pos1)")
@@ -169,12 +172,12 @@ nba <- nba |>
 nba_model <- lm(Salary ~ PTS + PF + AST + STL + Pos1, data=nba)
 ```
 
-```{r diagnostic-1, fig.cap = "Diagnostic Plots", fig.height=3.5}
+```{r diagnostic-1, fig.cap = "Diagnostic plots", fig.height=3.5}
 summary(nba_model)
 autoplot(nba_model, which=c(1, 2))
 ```
 
-```{r diagnostic-2, fig.cap = "Diagnostic Plots, continued", fig.height=4}
+```{r diagnostic-2, fig.cap = "Diagnostic plots, continued", fig.height=4}
 graph_summaries_2 <- function(model){
   p3 <- ggplot(model) +
     geom_point(aes(x = .fitted, y = model$model[[model_response_variables(model)]])) +
@@ -197,11 +200,11 @@ graph_summaries_2 <- function(model){
 graph_summaries_2(nba_model)
 ```
 
-We notice a few signs that our model violates linear regression assumptions. The residual vs. fitted graph (Figure \@ref(fig:diagnostic-1), left) has a pattern, which indicates that the residuals (and therefore errors) are correlated. It also contains points with uneven spread, which indicates heteroscedasticity (i.e. non-constant variance of errors). From the same graph, since the expected value of the residuals is not 0 across the range, non-linearity of our model is also apparent, i.e. Equation \@ref(eq:lm) does not hold.
+We notice a few signs that our model violates linear regression assumptions. The residual vs. fitted graph (Figure \@ref(fig:diagnostic-1), left) has a pattern, which indicates that the residuals (and therefore errors) are correlated. It also contains points with uneven spread, which indicates heteroscedasticity (i.e., non-constant variance of errors). From the same graph, since the expected value of the residuals is not 0 across the range, non-linearity of our model is also apparent, i.e., Equation \@ref(eq:lm) does not hold.
 
 The model also violates the *normality of error* assumption. The normal-QQ plot (Figure \@ref(fig:diagnostic-1), right) contains points above the identity line from +1 standard deviation and above. The standardized residuals histogram (Figure \@ref(fig:diagnostic-2), right) also shows a long right-tail (right-skewed). This means our model tends to underestimate player salaries at higher salary ranges.
 
-The scatter plot of response vs. fitted values (Figure \@ref(fig:diagnostic-2), left) also suggest that our model is not reliable for predicting salary in terms of the predictors we defined.
+The scatter plot of response vs. fitted values (Figure \@ref(fig:diagnostic-2), left) also suggests that our model is not reliable for predicting salary in terms of the predictors we defined.
 
 ## Model Discussion
 
@@ -214,9 +217,9 @@ kable(est_table, format = "latex", booktabs = TRUE, escape = FALSE, caption = "P
   add_header_above(apd, escape = FALSE)
 ```
 
-Because of the violations mentioned above, the interpretations we can make are limited. With that in mind, these still estimates tell us that player performance is correlated with their salary, which is also affected by their on-court positions.
+Because of the violations mentioned above, the interpretations we can make are limited. With that in mind, these estimates tell us that player performance is correlated with their salary, which is also affected by their on-court positions.
 
-In particular, we notice from the estimated model parameters (as seen in Table \@ref(tab:prelim-model)) that the predictor, assists (AST), contributes to the average salary by about \$1.2 million ($\hat{\beta_3} \approx `r nba_model[["coefficients"]]["AST"] |> round(-3)`$) for each unit increase while holding all other predictors constant. The predictor personal fouls (PF) has an opposite effect ($\hat{\beta_2} \approx `r nba_model[["coefficients"]]["PF"] |> round(-3)`$).
+In particular, we notice from the estimated model parameters (as seen in Table \@ref(tab:prelim-model)) that the predictor, assists (AST), contributes to the average salary by about \$1.2 million ($\hat{\beta_3} \approx `r nba_model[["coefficients"]]["AST"] |> round(-3)`$) for each unit increase while holding all other predictors constant. The predictor personal fouls (PFoul) has an opposite effect ($\hat{\beta_2} \approx `r nba_model[["coefficients"]]["PF"] |> round(-3)`$).
 
 For the categorical variables, we expect the average player salary to decrease by about \$4 million ($\hat{\beta_5} \approx `r nba_model[["coefficients"]]["Pos1SG"] |> round(-3)`$) if they change position from center (the reference level, C) to shooting guard (SG), holding all other predictors constant.
 
@@ -252,8 +255,8 @@ nba <- nba |>
 )
 ```
 
-We chose the log-transform for the Salary response variable to fix the violation of non-constant variance assumption, 
-and a mix of log and square/cube root transformations for the predictor variables to fix violation of linearity assumption. For log-transform of predictor variables, a small constant (square of the first quartile divided by the third quartile of each predictor) is added to avoid taking the log of 0 [@muldoon_log-0_2018].
+We chose the log-transform for the Salary response variable to fix the violation of the constant variance assumption,
+and a mix of log and square/cube root transformations for the predictor variables to fix the violation of linearity assumption. For log-transform of predictor variables, a small constant (the square of the first quartile divided by the third quartile of each predictor) is added to avoid taking the log of 0 [@muldoon_log-0_2018].
 While this would slightly change the sampling distribution of the corresponding $\hat{\beta}_{LE}$, it should remain close enough to the true distribution to not drastically affect our confidence interval calculation for our large dataset [@muldoon_log-0_2018].
 
 Model \@ref(eq:transformed) (omitting the constant mentioned above for brevity) is specified as
@@ -264,7 +267,7 @@ log(Salary) = \beta_0 &+ \beta_1\ \sqrt{PTS} + \beta_2\ log(PFoul) + \beta_3\ lo
 (\#eq:transformed)
 \end{split}
 \end{equation}
-Its associated diagnostic plots are included below in Figure \@ref(fig:diagnostic-transformed). While violations of non-constant variance, linearity, and normality of errors are still present in the plots, they are significantly improved compared to the original model, and are approximately satisfied to the degree to reasonably allow us to use partial F-tests to eliminate predictors. It is reasonable since F-test is considered *robust* against violations of normality of error and constant variance specifically [@berger_experimental_2018].
+Its associated diagnostic plots are included below in Figure \@ref(fig:diagnostic-transformed). While violations of constant variance, linearity, and normality of errors are still present in the plots, they are significantly improved compared to the original model, and are approximately satisfied to the degree to reasonably allow us to use partial F-tests to eliminate predictors. It is reasonable since F-test is considered *robust* against violations of normality of error and constant variance specifically [@berger_experimental_2018].
 
 ```{r diagnostic-transformed, fig.cap = "Model with transformed response and predictors.", fig.height=3}
 mod.transformed <- lm(tSalary ~ tPTS + tAST + tSTL + tPF + Pos1, data=nba)
@@ -278,7 +281,7 @@ mod.reduced <- lm(tSalary ~ tPTS + tAST + tPos1, data=nba)
 reduced_anova <- anova(mod.reduced, mod.transformed)
 ```
 
-We propose reduced model
+We propose the following reduced model
 \begin{equation}
 \begin{split}
 log(Salary) = \beta_0 &+ \beta_1\ \sqrt{PTS} + \beta_2\ log(AST) \\
@@ -288,10 +291,10 @@ log(Salary) = \beta_0 &+ \beta_1\ \sqrt{PTS} + \beta_2\ log(AST) \\
 \end{equation}
 which removes the transformed STL and PF predictors, as well as collapsing SF and PF categorical levels into the same level.
 The choices in these predictors are inspired by the R summary output of the fitted model (which we will omit here),
-where the p-value for the t-test for each individual predictor's coefficient are high.
-A partial F-test with model \@ref(eq:reduced) as $H_0$,
-and the transformed full model \@ref(eq:transformed) above as $H_1$ gives us a p-value of `r reduced_anova[["Pr(>F)"]][2] |> round(3)`,
-which is large enough to indicates that the reduced model should be used.
+where the p-value for the t-test for each individual predictor's coefficient is high.
+A partial F-test with Model \@ref(eq:reduced) as $H_0$,
+and the transformed full Model \@ref(eq:transformed) above as $H_1$ gives us a p-value of `r reduced_anova[["Pr(>F)"]][2] |> round(3)`,
+which is large enough to indicate that the reduced model should be used.
 
 ## Additional Predictors
 
@@ -322,11 +325,11 @@ graph_summaries_2(mod.additional)
 Because the project requires 5 predictors, we needed to include 2 additional predictors. We propose adding $log(\text{Fan Votes})$ and Age to incorporate popularity and seniority measures.
 
 Figure \@ref(fig:var-additional) shows their distribution,
-and Figure \@ref(fig:diagnostic-additional)+\@ref(fig:diagnostic-additional-cont) shows that
-there are no major regression assumptions violations for the updated Model \@ref(eq:additional),
+and Figure \@ref(fig:diagnostic-additional) and \@ref(fig:diagnostic-additional-cont) show that
+there are no major regression assumption violations for the updated Model \@ref(eq:additional),
 similar to what we saw earlier in Figure \@ref(fig:diagnostic-transformed).
 Specifically, while the blue mean line in Figure \@ref(fig:diagnostic-additional) (left) is not completely straight and the data plot is not the null plot, it's close enough to a constant of zero to approximately satisfy the assumption of linearity.
-The spread of points around 0 is also approximately the same and therefore approximately satisfy the constant variation of error assumption.
+The spread of points around 0 is also approximately the same and therefore approximately satisfies the constant variation of error assumption.
 In Figure \@ref(fig:diagnostic-additional) (right), the distribution of standardized residuals is slightly left-skewed, but it's close enough to normality that most of our analysis (F-tests and confidence intervals) still hold by robustness of ANOVA F-test [@berger_experimental_2018] and central limit theorem (with $n=$ `r nrow(mod.additional$model)`), respectively.
 \begin{equation}
 \begin{split}
@@ -341,8 +344,8 @@ anova(mod.reduced, mod.additional)
 vif(mod.additional)
 ```
 
-A partial F test gives us a very significant p-value of $2.2\times 10^{-16}$, while each estimated coefficient has a variance inflation factor $<5$ (see Table \@ref(tab:summary-table)),
-therefore we decide to use this as our final model for analysis.
+A partial F test gives us a very significant p-value of $2.2\times 10^{-16}$, while each estimated coefficient has a variance inflation factor $<5$ (see Table \@ref(tab:summary-table)).
+Therefore, we will use this as our final model for analysis.
 
 ## Problematic Observations
 
@@ -370,9 +373,9 @@ mod.influences <- get_infl_measures(mod.additional)
 graph_obs(mod.influences)
 ```
 
-Figure \@ref(fig:leverage).B only shows 1 data point whose $|r_i| > 4$ ($n= `r toString(n)`$ large enough to use 4 as cutoff), so we only have 1 outliers in our current model.
+Figure \@ref(fig:leverage).B only shows 1 data point whose $|r_i| > 4$ ($n= `r toString(n)`$, large enough to use 4 as cutoff), so we only have 1 outlier in our current model.
 
-From Figure \@ref(fig:leverage).A, there are leverage points in the dataset, where the blue line is the $h = \frac{2(p+1)}{n}$ cutoff. Since we only have 1 outlier, all but one of our leverage points are good leverage points, so we will check influential measures using Cook's distance, DFFITS, and DFBETAS measurements next.
+From Figure \@ref(fig:leverage).A, there are leverage points in the dataset, where the blue line is the $h = \frac{2(p+1)}{n}$ cutoff. Since we only have 1 outlier, all but one of our leverage points are good, so we will check influential measures using Cook's distance, DFFITS, and DFBETAS measurements next.
 
 ```{r influential, fig.cap="Cook's distance against index."}
 cook_cutoff <- qf(0.5, p+1, n-p-1)
@@ -416,7 +419,7 @@ Alternatively, the DFFITS measure shows `r infl_df |> filter(over.dffits) |> nro
 while the DFBETAS measure shows $`r infl_df |> filter(over.dfbetas) |> nrow()`$ influential points
 (with cutoff $\frac{2}{\sqrt{n}}= `r round(2 / sqrt(n), 3)`$).
 
-Manually inspecting these points do not reveal any invalid data values for all predictors before or after transformations, so they can't be removed based on the invalid data criterion. Because our model contains already transformed variables, we attempt to use interaction terms to eliminate or reduce these observations, with no effect. The plots used to reach this conclusion is omitted from this report for brevity, but the code to generate them can be found inside the R Markdown file next to this section.
+Manually inspecting these points does not reveal any invalid data values for all predictors before or after transformations, so they can't be removed based on the invalid data criterion. Because our model contains already transformed variables, we attempt to use interaction terms to eliminate or reduce these observations, with no effect. The plots used to reach this conclusion is omitted from this report for brevity, but the code to generate them can be found inside the R Markdown file next to this section.
 
 ```{r influential-treatment, eval=F}
 # we can uncomment each of the following treated models with different
@@ -435,7 +438,7 @@ graph_obs(model_infl)
 graph_inf(model_infl)
 ```
 
-```{r robust-regression, fig.cap="OLS vs IWSL fits for continuous predictors. 't' in axis label represents denotes that the variable has been transformed. Note the minimal difference between the slopes of the different regression estimation methods."}
+```{r robust-regression, fig.cap="OLS vs IWSL fits for continuous predictors. 't' in axis label denotes that the variable has been transformed. Note the minimal difference between the slopes of the different regression estimation methods."}
 mod.robust <- rlm(formula(mod.additional), data = nba)
 plot_pred <- function(pred) {
   ggplot(nba, aes(x = eval(as.name(pred)), y = tSalary)) +
@@ -450,7 +453,7 @@ plot_grid(plot_pred("tPTS"), plot_pred("tAST"), plot_pred("tFvot"), plot_pred("A
 We also attempt to fit a robust regression model (iteratively re-weighted least squares fits, or IWLS) using `rlm()` from `library(MASS)`, but it does not produce any qualitative difference in terms of estimates of coefficients (see Figure \@ref(fig:robust-regression)), nor does it substantially improve residual standard error (IWLS: `r summary(mod.robust)$sigma |> round(3)` vs OLS: `r summary(mod.reduced)$sigma |> round(3)`).
 
 In summary, we opt to leave the influential points and our model as is, since our model has no outliers, very few leverage points, and no influential points (using Cook's cutoff). 
-Given the large size of the dataset ($n= `r nrow(nba)`$) and relatively few number of estimated predictors ($p=$ `r length(mod.reduced$coefficients)`), the cutoffs for DFFITS, DFBETAS, and alternate cutoff for Cook's Distance provided in lecture are too small and sensitive to determine useful influential points. 
+Given the large size of the dataset ($n= `r nrow(nba)`$) and relatively few number of estimated predictors ($p=$ `r length(mod.reduced$coefficients)`), the cutoffs for DFFITS, DFBETAS, and the alternate cutoff for Cook's Distance provided in lecture are too small and sensitive to determine useful influential points.
 Robust regression fits also do not provide any benefits to us, plus we don't know if we meet all the assumptions required by the robust regression method, so we will not use robust regression for our analysis.
 
 
@@ -548,11 +551,11 @@ regression_tbl |>
   kable_styling(latex_options = "hold_position")
 ```
 Table \@ref(tab:summary-table) back-transformations are performed as follows:
-since one-unit increase in the transformed predictors corresponds to an expected $\hat{\beta_i}$ unit increase in $log($`Salary`$)$,
+since a one-unit increase in the transformed predictors corresponds to an expected $\hat{\beta_i}$ unit increase in $log($`Salary`$)$,
 holding all other predictors constant.
-In other words, it's also associated with an expected increase of `Salary` by a factor of $e^{\hat{\beta_i}}$,
-i.e. an increase of $(e^{\hat{\beta_i}} - 1)100\%$ [@ford_interpreting_2018].
-End-points of the (95%) confidence interval is transformed and interpreted similarly, that we are 95% confident that the true expected average percentage increase lies within the interval.
+In other words, it's also associated with an expected increase in `Salary` by a factor of $e^{\hat{\beta_i}}$,
+i.e., an increase of $(e^{\hat{\beta_i}} - 1)100\%$ [@ford_interpreting_2018].
+End-points of the (95%) confidence interval are transformed and interpreted similarly, that we are 95% confident that the true expected average percentage increase lies within the interval.
 This interpretation is used for the following analysis, unless otherwise noted.
 
 ## Coefficient Interpretations
@@ -565,16 +568,15 @@ Our final regression model \@ref(eq:additional) examines how performance and dem
 
 $\sqrt{\text{Points}}$ is the most influential predictor. A one-unit increase in $\sqrt{\text{Points}}$ is associated with an expected average $\phantom{}`r b_hat["tPTS"]`$ increase in salary (refer to Table \@ref(tab:summary-table) for the 95% confidence interval for this and all following estimates). This makes intuitive sense: scoring is a primary driver of player valuation and contract negotiation in the NBA, as it's the ultimate objective of the game: to outscore your opponent. A team needs to accumulate more points than the opposing team to win, making scoring the driving force behind all offensive strategies.
 
-$log(\text{AST})$ is also highly significant, where each one-unit increase in the log of assists per game (i.e. base assists increase by a factor of $e \approx `r exp(1) |> round(2)`$) leads to a $\phantom{}`r b_hat["tAST"]`$ increase in salary. Assists reflect a player’s playmaking ability; it's the skill of creating offensive advantages for oneself and teammates. It's more than just passing, it involves drawing defenses in, creating open shots, and keeping the offence flowing. A good playmaker can significantly impact a team's success by engaging all players and making them feel valuable, even if they aren't scoring. Especially important for guards and point-forwards, making this an expected and meaningful result.
+$log(\text{AST})$ is also highly significant, where each one-unit increase in the log of assists per game (i.e., base assists increase by a factor of $e \approx `r exp(1) |> round(2)`$) leads to a $\phantom{}`r b_hat["tAST"]`$ increase in salary. Assists reflect a player’s playmaking ability; it's the skill of creating offensive advantages for oneself and teammates. It's more than just passing, it involves drawing defenses in, creating open shots, and keeping the offence flowing. A good playmaker can significantly impact a team's success by engaging all players and making them feel valuable, even if they aren't scoring. Especially important for guards and point-forwards, making this an expected and meaningful result.
 
 $log(\text{Fan Votes})$ has a smaller but still significant impact. A one-unit increase corresponds to a $\phantom{}`r b_hat["tFvot"]`$ increase in salary. This supports the idea that player popularity and marketability contribute to pay. While not as impactful as on-court performance, this reflects the entertainment aspect of the league: fan-favorite players are more likely to bring media attention, merchandise sales, and brand value to a franchise.
 
 The coefficient for Age suggesting that for each additional year of age, salary increases by approximately $\phantom{}`r b_hat["Age"]`$. However, there are shortcomings to interpreting this coefficient estimate directly due to the complexity of age and seniority in the NBA leagues. See Section \@ref(recommendations-for-future-research) for a detailed discussion.
 
-Our model uses SF/PF (Forwards) as the reference level, but it would be inappropriate to interpreted the intercept estimate directly, since player age is a predictor and should not take a value of 0.
-Center (C) players are expected to earn $\phantom{}`r b_hat["tPos1Center"]`$ more on average compared to the forwards, point guards (PG) earn $\phantom{}`r b_hat["tPos1Point Guard"] |> gsub("-", "", x = _)`$ less,
+Our model uses SF/PF (Forwards) as the reference level, but it would be inappropriate to interpret the intercept estimate directly, since player age is a predictor and should not take a value of 0.
+Compared to the forwards (SF and PForward), center (C) players are expected to earn $\phantom{}`r b_hat["tPos1Center"]`$ more on average, point guards (PG) earn $\phantom{}`r b_hat["tPos1Point Guard"] |> gsub("-", "", x = _)`$ less,
 and shooting guards (SG) earn $\phantom{}`r b_hat["tPos1Shooting Guard"] |> gsub("-", "", x = _)`$ less.
-
 These differences reflect both team strategy and labour market dynamics. For example, centers often anchor the defense, rebound at a high rate, and are paid premiums for size and rim protection. Guards, while important, on average, are more numerous and replaceable given their smaller size and more common physical demographic, which may depress average earnings.
 
 Overall, our results highlight that performance statistics, particularly scoring and playmaking, are the strongest predictors of salary. Age and experience also play major roles, but the relationship is more complex than a simple linear increase. Fan popularity and position add important context, revealing that salary is shaped by a combination of performance, perception, and team needs. This multifaceted structure underpins the challenges in fairly and accurately modelling player compensation in professional sports.
@@ -643,13 +645,13 @@ When constructing Model 4, our goal was to achieve the best performance across a
 The $R^2$ values indicate how well each model explains the variability in player salaries, and we compare model explanatory performance by using $R^2_{adj}$.
 Model 4 outperforms the other 3 models with this metric, with $R^2_{adj}$ = 0.517.
 The AIC and BIC values in Table 3 indicate that Model 4 also offers clear advantages in model fit when compared to previous model iterations.
-It has the lowest AIC at 2951.74, when compared to all other models.
-The BIC values, which more strongly penalize model complexity than AIC, also identify Model 4 as the best performing, with the lowest BIC at 2997.97. So Model 4 best explains the variation of Salary while remaining the least complex (i.e. the most efficient) model.
+It has the lowest AIC at 2951.74 when compared to all other models.
+The BIC values, which more strongly penalize model complexity than AIC, also identify Model 4 as the best performing, with the lowest BIC at 2997.97. So Model 4 best explains the variation of Salary while remaining the least complex (i.e., the most efficient) model.
 
 Table \@ref(tab:model-measures) (Right) justifies the lack of variable removal from our final model using performance metrics.
 Models 5-9 are Model 4 with each of the 5 predictors removed in order.
-Similar to previous analysis, Model 4 is the best model in terms of $R^2_{adj}$ and AIC, and second best in terms of BIC.
-Therefore, Model 4 remains as our final model.
+Similar to previous analysis, Model 4 is the best model in terms of $R^2_{adj}$ and AIC, and the second best in terms of BIC.
+Therefore, Model 4 remains our final model.
 
 # Discussion and Conclusion
 
@@ -660,7 +662,7 @@ p_value <- regression_tbl$table_body$p.value
 names(p_value) <- regression_tbl$table_body$label |> names()
 ```
 
-Our analysis aimed to address the question "To what extent can NBA player salary be explained by on-court performance and position?”
+Our analysis aimed to address the question *"To what extent can NBA player salary be explained by on-court performance and position?”*
 We have established that there exists a strong positive correlation between NBA players’ salaries and their on-court performance,
 specifically points per game and assists per game,
 as seen in the high model coefficient estimates for the transformed predictors,
@@ -668,24 +670,23 @@ with a very significant p-value associated with each estimate (see Table \@ref(t
 Player popularity (as measured by log of fan votes) also shows a small positive association with salary,
 but the p-value for the estimate is barely significant at $p = `r p_value["tFvot"] |> round(3)`$.
 Furthermore, playing positions can affect players' salaries in varying ways,
-with centers generally earning more ($`r b_hat["tPos1Center"]`$) and guards earning less ($`r b_hat["tPos1Shooting Guard"] |> gsub("-", "", x = _)`$ for shooting guards and $`r b_hat["tPos1Point Guard"] |> gsub("-", "", x = _)`$ for point guards) compared to forwards, our reference group.
+with centers generally earning more ($\phantom{}`r b_hat["tPos1Center"]`$) and guards earning less ($`r b_hat["tPos1Shooting Guard"] |> gsub("-", "", x = _)`$ for shooting guards and $`r b_hat["tPos1Point Guard"] |> gsub("-", "", x = _)`$ for point guards) compared to forwards, our reference group.
 
-On the other hand, personal fouls (PF) and steals (STL) are predictors that are highly correlated with others,
+On the other hand, personal fouls (PFoul) and steals (STL) are predictors that are highly correlated with others,
 making them redundant and leading to their exclusion.
 Therefore, we don’t know to what extent personal fouls and steals contribute (positively or negatively) to a player’s salary.
 
 In brief, according to our model,
 the primary way for a player to improve their salary would be to improve their on-court performance in terms of their scoring and playmaking ability.
-Players aiming to be more popular may see an increase to their salary as well,
+Players with higher media popularity may see an increase to their salary as well,
 but the extent of the improvement may be minor.
-Additionally, players can expect an average increase in salary as they age,
-or as they switch from more defensive to more offensive roles.
+Additionally, players can expect an average increase in salary as they age.
 
 ## Recommendations for Future Research
 
 While the factors that we have included in our analysis affect players’ salaries,
 they do not fully explain how the players are reimbursed.
-Using the R-squared measure, we see that our model explains 52% of the variation in log(Salary), which leaves 48% unexplained.
+Using the R-squared measure, we see that our model explains 52% of the variation in $log(\text{Salary})$, which leaves 48% unexplained.
 
 
 For example, our model assumes that player age and $log(\text{Salary})$ are approximately linearly related for the simplicity of the model.
@@ -768,5 +769,7 @@ Jack Zhang
 - Wrote the notes in the Group Teamwork Agreement Doc
 - Proofreading to ensure clarity and accuracy
 - Co-wrote Section \@ref(model-performance-assessment). Integrated and helped write both sections of the conclusion (\@ref(conclusions-and-key-findings), \@ref(recommendations-for-future-research))
+
+\newpage
 
 # Bibliography
