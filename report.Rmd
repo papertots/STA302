@@ -676,11 +676,14 @@ On the other hand, personal fouls (PFoul) and steals (STL) are predictors that a
 making them redundant and leading to their exclusion.
 Therefore, we don’t know to what extent personal fouls and steals contribute (positively or negatively) to a player’s salary.
 
-In brief, according to our model,
-the primary way for a player to improve their salary would be to improve their on-court performance in terms of their scoring and playmaking ability.
-Players with higher media popularity may see an increase to their salary as well,
-but the extent of the improvement may be minor.
-Additionally, players can expect an average increase in salary as they age.
+In brief, according to our model, the primary way for a player to improve their salary would be to improve their on-court performance in terms of their scoring and playmaking ability.
+Players aiming to be more popular may see an increase in their salary as well, but the extent of the improvement may be minor.
+Additionally, salary differences reflect positional value, as centers historically command higher pay for their defensive impact,
+while forwards, valued for their versatility, typically see more balanced compensation.
+Point guards were also paid significantly less than forwards as seen in our results.
+However, it’s important to note that this reflects the period covered by our dataset.
+Since 2019, the landscape has shifted, with point guards surpassing centers as the league’s highest-paid position [@curcic_nba_2024].
+This evolution reflects the modern game's guard-driven, three-point-oriented offensive style.
 
 ## Recommendations for Future Research
 
